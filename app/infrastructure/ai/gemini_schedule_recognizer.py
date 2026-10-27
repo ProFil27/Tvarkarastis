@@ -5,7 +5,7 @@ from app.application.ports import RecognitionResult
 from app.application.validation import TIME_FORMAT, parse_time
 from app.domain.entities import StudyEvent, StudyEventType
 from app.domain.weekday import Weekday
-from app.infrastructure.ai.gemini_client import GeminiClient, RetriesExhausted, call_with_retries
+from app.infrastructure.ai.gemini_client import JsonClient, RetriesExhausted, call_with_retries
 
 _PROMPT = """You are analysing a university timetable PDF (Lithuanian). Return ONLY a JSON
 array (no extra text) in which every element is one lecture / practical /
@@ -35,8 +35,8 @@ Example: [{"subject": "Programming", "event_type": "PASKAITA",
 """
 
 
-class GeminiScheduleRecognizer:
-    def __init__(self, client: GeminiClient):
+class ScheduleRecognizer:
+    def __init__(self, client: JsonClient):
         self._client = client
 
     def recognize(self, pdf_content: bytes) -> RecognitionResult:
@@ -90,3 +90,7 @@ def parse_events(data) -> list[StudyEvent]:
             )
         )
     return events
+
+
+# Backwards-compatible import name; the adapter is shared by both AI providers.
+GeminiScheduleRecognizer = ScheduleRecognizer

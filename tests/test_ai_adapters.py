@@ -1,6 +1,11 @@
 """AI adapters without network: retry policy, response validation and agents behind a stub client."""
 
+import base64
+import io
+import json
+from contextlib import nullcontext
 from datetime import time
+from urllib.error import HTTPError
 
 import pytest
 
@@ -8,8 +13,11 @@ from app.application.errors import AnalysisFailed, RecognitionFailed
 from app.domain.entities import StudyEvent, StudyEventType, WorkShift
 from app.domain.weekday import Weekday
 from app.infrastructure.ai.gemini_client import RetriesExhausted, call_with_retries
+from app.infrastructure.ai import claude_client
+from app.infrastructure.ai.claude_client import AnthropicApiError, ClaudeClient
 from app.infrastructure.ai.gemini_conflict_analyzer import GeminiConflictAnalyzer, parse_conflicts
 from app.infrastructure.ai.gemini_schedule_recognizer import GeminiScheduleRecognizer, parse_events
+from app.infrastructure.config import Settings
 
 GOOD_ENTRY = {
     "subject": "Programavimas", "event_type": "PASKAITA", "day_of_week": "PIRMADIENIS",
@@ -45,7 +53,9 @@ def test_retry_succeeds_on_the_third_attempt():
             raise value
         return value
 
-    assert call_with_retries(operation) == ("ok", 3)
+    delays = []
+    assert call_with_retries(operation, sleep=delays.append) == ("ok", 3)
+    assert len(delays) == 2 and delays[0] >= 1 and delays[1] >= 2
 
 
 def test_retry_gives_up_after_three_attempts():
@@ -56,8 +66,84 @@ def test_retry_gives_up_after_three_attempts():
         raise RuntimeError("always failing")
 
     with pytest.raises(RetriesExhausted) as exc:
-        call_with_retries(operation)
+        call_with_retries(operation, sleep=lambda _: None)
     assert len(calls) == 3 and exc.value.attempts == 3
+
+
+def test_retry_uses_retry_after_header():
+    class RateLimitedError(Exception):
+        retry_after_seconds = "4"
+
+    delays = []
+    outcomes = iter([RateLimitedError("429"), "ok"])
+
+    def operation():
+        value = next(outcomes)
+        if isinstance(value, Exception):
+            raise value
+        return value
+
+    assert call_with_retries(operation, sleep=delays.append) == ("ok", 2)
+    assert len(delays) == 1 and delays[0] >= 4
+
+
+def test_claude_client_posts_json_and_pdf_without_network(monkeypatch):
+    captured = {}
+
+    def fake_urlopen(request, timeout):
+        captured["request"] = request
+        captured["timeout"] = timeout
+        body = json.dumps({"content": [{"type": "text", "text": '[{"ok": true}]'}]}).encode()
+        return nullcontext(io.BytesIO(body))
+
+    monkeypatch.setattr(claude_client, "urlopen", fake_urlopen)
+    client = ClaudeClient("test-api-key", "claude-test")
+
+    assert client.generate_json([client.pdf_part(b"pdf-bytes"), "Return JSON"]) == [{"ok": True}]
+
+    request = captured["request"]
+    payload = json.loads(request.data)
+    assert request.full_url == "https://api.anthropic.com/v1/messages"
+    assert request.get_header("X-api-key") == "test-api-key"
+    assert request.get_header("Anthropic-version") == "2023-06-01"
+    assert captured["timeout"] == 60
+    assert payload["model"] == "claude-test"
+    assert payload["messages"][0]["content"][0]["source"]["data"] == base64.b64encode(b"pdf-bytes").decode()
+    assert payload["messages"][0]["content"][1]["text"] == "Return JSON"
+
+
+def test_claude_rate_limit_error_exposes_retry_after(monkeypatch):
+    def fake_urlopen(request, timeout):
+        raise HTTPError(
+            request.full_url,
+            429,
+            "rate limited",
+            {"Retry-After": "3"},
+            io.BytesIO(b'{"error":{"message":"too many requests"}}'),
+        )
+
+    monkeypatch.setattr(claude_client, "urlopen", fake_urlopen)
+    with pytest.raises(AnthropicApiError) as exc:
+        ClaudeClient("test-api-key", "claude-test").generate_json("hello")
+    assert exc.value.status == 429
+    assert exc.value.retry_after_seconds == "3"
+
+
+def test_settings_select_claude_from_environment(monkeypatch, tmp_path):
+    for key, value in {
+        "DB_NAME": "test",
+        "DB_USER": "test",
+        "DB_PASSWORD": "test",
+        "SECRET_KEY": "test-secret",
+        "AI_PROVIDER": "CLAUDE",
+        "CLAUDE_MODEL": "claude-test-model",
+    }.items():
+        monkeypatch.setenv(key, value)
+
+    settings = Settings(path=str(tmp_path / "missing.ini"))
+
+    assert settings.ai_provider == "claude"
+    assert settings.claude_model == "claude-test-model"
 
 
 @pytest.mark.parametrize(

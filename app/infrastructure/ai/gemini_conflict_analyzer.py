@@ -6,7 +6,7 @@ from app.application.errors import AnalysisFailed
 from app.application.ports import AnalysisResult
 from app.application.validation import format_time
 from app.domain.entities import DetectedConflict, StudyEvent, WorkShift
-from app.infrastructure.ai.gemini_client import GeminiClient, RetriesExhausted, call_with_retries
+from app.infrastructure.ai.gemini_client import JsonClient, RetriesExhausted, call_with_retries
 
 _PROMPT = """You receive lists of study events and work shifts (JSON). Find every pair
 (study event, work shift) on the same weekday whose time intervals overlap.
@@ -19,8 +19,8 @@ Data:
 """
 
 
-class GeminiConflictAnalyzer:
-    def __init__(self, client: GeminiClient):
+class ConflictAnalyzer:
+    def __init__(self, client: JsonClient):
         self._client = client
 
     def analyze(self, events: list[StudyEvent], shifts: list[WorkShift]) -> AnalysisResult:
@@ -72,3 +72,7 @@ def parse_conflicts(data, known_events: set[int], known_shifts: set[int]) -> lis
             raise ValueError("Response contains unknown IDs.")
         conflicts.append(DetectedConflict(event_id, shift_id, minutes))
     return conflicts
+
+
+# Backwards-compatible import name; the adapter is shared by both AI providers.
+GeminiConflictAnalyzer = ConflictAnalyzer

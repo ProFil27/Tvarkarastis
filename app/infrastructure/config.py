@@ -47,6 +47,11 @@ class Settings:
 
         self.gemini_api_key = get("GEMINI_API_KEY", "gemini", "api_key", "")
         self.gemini_model = get("GEMINI_MODEL", "gemini", "model", "gemini-3.5-flash")
+        self.ai_provider = get("AI_PROVIDER", "ai", "provider", "gemini").strip().lower()
+        if self.ai_provider not in {"gemini", "claude"}:
+            raise RuntimeError("AI_PROVIDER must be either 'gemini' or 'claude'.")
+        self.claude_api_key = get("CLAUDE_API_KEY", "claude", "api_key", "")
+        self.claude_model = get("CLAUDE_MODEL", "claude", "model", "claude-sonnet-4-5-20250929")
 
         self.secret_key = get("SECRET_KEY", "app", "secret_key")
         self.debug = get("FLASK_DEBUG", "app", "debug", "false").lower() == "true"

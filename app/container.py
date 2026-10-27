@@ -1,6 +1,6 @@
 """Composition root: the only place that knows which concrete adapters are used.
 
-Wires infrastructure implementations (Postgres, Gemini, hashing) into the
+Wires infrastructure implementations (Postgres, the selected AI provider, hashing) into the
 application services. Replacing the AI provider or the database means changing
 this file and the adapters, not the services (N-19).
 """
@@ -13,9 +13,10 @@ from app.application.conflict_service import ConflictService
 from app.application.schedule_import_service import ScheduleImportService
 from app.application.week_view_service import WeekViewService
 from app.application.work_shift_service import WorkShiftService
+from app.infrastructure.ai.claude_client import ClaudeClient
 from app.infrastructure.ai.gemini_client import GeminiClient
-from app.infrastructure.ai.gemini_conflict_analyzer import GeminiConflictAnalyzer
-from app.infrastructure.ai.gemini_schedule_recognizer import GeminiScheduleRecognizer
+from app.infrastructure.ai.gemini_conflict_analyzer import ConflictAnalyzer
+from app.infrastructure.ai.gemini_schedule_recognizer import ScheduleRecognizer
 from app.infrastructure.config import Settings
 from app.infrastructure.database import Database
 from app.infrastructure.persistence.ai_request_log import PostgresAiRequestLog
@@ -44,13 +45,16 @@ def build_services(settings: Settings) -> Services:
     schedules = PostgresScheduleRepository(database)
     shifts = PostgresWorkShiftRepository(database)
     ai_log = PostgresAiRequestLog(database)
-    gemini = GeminiClient(settings.gemini_api_key, settings.gemini_model)
+    if settings.ai_provider == "claude":
+        ai_client = ClaudeClient(settings.claude_api_key, settings.claude_model)
+    else:
+        ai_client = GeminiClient(settings.gemini_api_key, settings.gemini_model)
     change_notifier = ChangeNotifier()
 
     auth = AuthService(PostgresUserRepository(database), WerkzeugPasswordHasher())
 
     schedule_import = ScheduleImportService(
-        PostgresPdfDocumentRepository(database), schedules, GeminiScheduleRecognizer(gemini), ai_log, change_notifier
+        PostgresPdfDocumentRepository(database), schedules, ScheduleRecognizer(ai_client), ai_log, change_notifier
     )
 
     work_shifts = WorkShiftService(shifts, change_notifier)
@@ -58,7 +62,7 @@ def build_services(settings: Settings) -> Services:
     conflict_repository = PostgresConflictRepository(database)
     notifications = PostgresNotificationRepository(database)
     conflicts = ConflictService(
-        schedules, shifts, conflict_repository, notifications, GeminiConflictAnalyzer(gemini), ai_log
+        schedules, shifts, conflict_repository, notifications, ConflictAnalyzer(ai_client), ai_log
     )
     change_notifier.subscribe(conflicts.run_check)
     week_view = WeekViewService(schedules, shifts, conflict_repository, notifications)

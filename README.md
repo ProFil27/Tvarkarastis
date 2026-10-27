@@ -16,7 +16,7 @@ app/
   domain/           verslo esybės ir taisyklės (be Flask/DB/DI): entities, weekday, overlap
   application/      use case servisai (klasės) ir ports (Protocol sąsajos): auth_service,
                     schedule_import_service, work_shift_service, conflict_service, week_view_service
-  infrastructure/   adapteriai: config, database, persistence/ (PostgreSQL), ai/ (Gemini), security
+  infrastructure/   adapteriai: config, database, persistence/ (PostgreSQL), ai/ (Gemini / Claude), security
   web/              Flask: auth/, schedule/, work_shifts/, week/ (routes), templates/, static/
   container.py      composition root - čia surišami servisai su adapteriais
 db/                 schema.sql, seed.sql
@@ -39,20 +39,23 @@ Specifikacijos komponentai (Coad-Yourdon) -> kodas:
 | DPK + DB (duomenų prieiga) | `infrastructure/database.py`, `infrastructure/persistence/` |
 
 Sistema veikia lokaliai: naršyklė + Python (Flask) + PostgreSQL vienu kompiuteriu.
-Internetu pasiekiamas tik Google Gemini API.
+Internetu pasiekiamas pasirinkto tiekėjo API (Google Gemini arba Anthropic Claude).
 
 ## Paleidimas (Docker + Task) - rekomenduojama
 
 Reikia: Docker Desktop ir [Task](https://taskfile.dev) (`winget install Task.Task`).
 
 ```
-copy .env.example .env      # tada .env uzpildyti (GEMINI_API_KEY, slaptazodzius)
+copy .env.example .env      # tada .env uzpildyti (AI_PROVIDER, pasirinkto tiekėjo API raktą ir slaptazodzius)
 task                        # sukuria DB (schema), paleidzia app -> http://127.0.0.1:5000
 ```
 
 Kitos komandos: `task down` (sustabdyti), `task reset` (istrinti DB), `task logs`,
 `task seed` (demo duomenys), `task psql`. `.env` niekada nekomitinamas (N-22).
-Gemini API raktas imamas is `.env` (`GEMINI_API_KEY`).
+AI tiekėją nustato `.env` kintamasis `AI_PROVIDER`: `gemini` (numatytasis) arba `claude`.
+Užpildykite atitinkamai `GEMINI_API_KEY` arba `CLAUDE_API_KEY`; modelius galima pasirinkti
+per `GEMINI_MODEL` ir `CLAUDE_MODEL`. API užklausos klaidos bandomos dar kartą su eksponentine
+pertrauka; jei tiekėjas pateikia `Retry-After`, laukiama bent nurodytą laiką.
 
 ## Paleidimas be Docker
 
