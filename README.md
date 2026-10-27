@@ -9,6 +9,8 @@ Kodas skirstomas į sluoksnius; priklausomybės eina tik į vidų (`web` → `ap
 `infrastructure` įgyvendina `application` sluoksnio sąsajas (ports), todėl DB ar DI tiekėją galima
 pakeisti nekeičiant verslo logikos (N-18, N-19).
 
+Schedule-import done
+
 ```
 app/
   domain/           verslo esybės ir taisyklės (be Flask/DB/DI): entities, weekday, overlap

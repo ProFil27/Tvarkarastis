@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Tvarkaraščio įkėlimas{% endblock %}
+{% block content %}
+    <h1>Įkelti universiteto tvarkaraštį (PDF)</h1>
+
+    {% if error %}<div class="field-error">{{ error }}</div>{% endif %}
+
+    <form method="post" enctype="multipart/form-data" novalidate>
+        <div>
+            <label for="pdf_file">PDF failas (ne didesnis nei 10 MB)</label>
+            <input type="file" id="pdf_file" name="pdf_file" accept="application/pdf">
+        </div>
+        <div>
+            <label>
+                <input type="checkbox" name="ai_consent">
+                Sutinku, kad šis failas būtų išsiųstas DI paslaugos tiekėjui (Google Gemini)
+                tvarkaraščio duomenims atpažinti.
+            </label>
+        </div>
+        <button type="submit">Įkelti</button>
+    </form>
+{% endblock %}
