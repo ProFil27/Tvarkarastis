@@ -94,3 +94,20 @@ def test_upload_review_confirm_flow_over_http():
 
     assert client.post("/schedule/review", data={**row, "action": "confirm"}).status_code == 302
     assert len(schedules.saved_schedules) == 1
+
+
+def test_reject_saves_nothing_and_returns_to_the_upload_window():
+    service, pdfs, schedules, _ = make_import()
+    client = create_app(services=Services(schedule_import=service)).test_client()
+    with client.session_transaction() as session:
+        session["user_id"] = 1
+    client.post(
+        "/schedule/upload",
+        data={"pdf_file": (io.BytesIO(b"%PDF"), "t.pdf"), "ai_consent": "on"},
+        content_type="multipart/form-data",
+    )
+
+    response = client.post("/schedule/review", data={"action": "reject"})
+
+    assert response.status_code == 302 and response.headers["Location"].endswith("/schedule/upload")
+    assert schedules.saved_schedules == [] and pdfs.documents[1].status == PdfStatus.FAILED
