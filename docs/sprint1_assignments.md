@@ -21,8 +21,8 @@ Bendros taisyklės visiems:
 `app/gvs/templates/register.html`, `app/gvs/templates/login.html`
 
 Ką padaryti:
-1. `app/ak/routes.py`: blueprint `ak_bp` su maršrutais `/registruotis` (GET+POST),
-   `/prisijungti` (GET+POST), `/atsijungti` (POST).
+1. `app/ak/routes.py`: blueprint `ak_bp` su maršrutais `/register` (GET+POST),
+   `/login` (GET+POST), `/logout` (POST).
 2. Registracija: laukai vardas, el. paštas (unikalus), slaptažodis (>=8 simboliai).
    Slaptažodis saugomas tik kaip `werkzeug.security.generate_password_hash` santrauka (N-20).
    El. pašto unikalumo pažeidimas -> klaida prie lauko.
@@ -54,8 +54,8 @@ AA-1..4 | DPK-3, DPK-4, DPK-5 | N-03, N-04, N-08, N-10, N-23, N-24
 `app/gvs/templates/review.html`
 
 Ką padaryti:
-1. `app/tvk/import_routes.py`: blueprint `tvk_bp` (prefix `/tvarkarastis`), maršrutai
-   `/ikelti` (GET+POST, PDF + sutikimo varnelė), `/perziura` (GET - rodo atpažintus
+1. `app/tvk/import_routes.py`: blueprint `tvk_bp` (prefix `/schedule`), maršrutai
+   `/upload` (GET+POST, PDF + sutikimo varnelė), `/review` (GET - rodo atpažintus
    įrašus redaguojamoje lentelėje, POST - `patvirtinti`/`atmesti`).
 2. Validacija prieš apdorojimą (TVK-1): tipas PDF, dydis <=10MB (N-03), pažymėtas sutikimas
    (N-23) - be jo failas atmetamas su pranešimu.
@@ -71,7 +71,7 @@ Ką padaryti:
 6. Patvirtinus (F-08, TVK-5): sukurti `schedules` įrašą (valid_from/valid_to - einamas
    semestras, nustatyti pagal konfigūruojamą semestro datų konstantą), `subjects` (unikalūs
    pagal pavadinimą tame tvarkaraštyje), `study_events`; `pdf_documents.status = PATVIRTINTAS`.
-   Atmetus (TVK-6): duomenys neišsaugomi, atgal į `/ikelti`.
+   Atmetus (TVK-6): duomenys neišsaugomi, atgal į `/upload`.
 7. DPK pusėje: `create_pdf_document`, `update_pdf_status`, `create_schedule_with_events`,
    `create_ai_request` / `finish_ai_request` (žurnalas DPK-4, naudoti `ai_requests` lentelę).
 8. Atnaujinti `db/seed.sql` savo skiltyje su pavyzdiniu tvarkaraščiu.
@@ -89,8 +89,8 @@ pradžia) parodo klaidą ir neleidžia patvirtinti; "Atmesti" nieko neišsaugo.
 `app/gvs/templates/shifts.html`
 
 Ką padaryti:
-1. `app/dvk/routes.py`: blueprint `dvk_bp` (prefix `/darbo-valandos`), maršrutai
-   `/` (GET - forma + sąrašas), `/pridėti` (POST), `/<id>/salinti` (POST).
+1. `app/dvk/routes.py`: blueprint `dvk_bp` (prefix `/work-shifts`), maršrutai
+   `/` (GET - forma + sąrašas), `/add` (POST), `/<id>/remove` (POST).
 2. Forma: darbovietė (tekstas - jei darbovietė neegzistuoja naudotojui, sukurti naują
    `workplaces` įrašą), savaitės diena (select iš `weekday` enum reikšmių lietuviškai),
    pradžia/pabaiga (HH:MM, 24 val.).
@@ -121,7 +121,7 @@ kad nebūtų merge konfliktų su Dalimi 2), `app/kvk/__init__.py`, `app/kvk/serv
 `app/an/__init__.py`, `app/an/agent.py`, `app/gvs/templates/week_view.html`
 
 Ką padaryti:
-1. `app/tvk/week_routes.py`: blueprint `tvk_week_bp` (prefix `/savaite`), maršrutas
+1. `app/tvk/week_routes.py`: blueprint `tvk_week_bp` (prefix `/week`), maršrutas
    `/<data>` (pirmadienio data, formatas YYYY-MM-DD) ir `/` (einamoji savaitė).
    Surenka naudotojo `study_events` + `work_shifts` + `conflicts` tai savaitei (TVK-7)
    ir perduoda į `week_view.html` (vienas "TimeInterval" - struktūrinis objektas,
@@ -139,7 +139,7 @@ Ką padaryti:
 6. `week_view.html`: savaitės lentelė (7 dienos), paskaitos ir pamainos; konfliktuojantys
    įrašai pažymimi CSS klase `.conflict` + tekstinė žymė `.conflict-label` ("Konfliktas"),
    kitaip `.status-ok` ("OK"); paspaudus konfliktą - detalės (paskaita, pamaina, trukmė).
-   Naršymas tarp savaičių (ankstesnė/kita) - URL `/savaite/<data>`.
+   Naršymas tarp savaičių (ankstesnė/kita) - URL `/week/<date>`.
 7. DPK pusėje: `list_study_events_and_shifts_for_week(user_id, week_start)`,
    `save_conflicts(...)`, `create_notification(...)`, `list_notifications(user_id)`.
 8. Performanso reikalavimas N-12: visa konfliktų paieška (su DI užklausa) <=2 min.
