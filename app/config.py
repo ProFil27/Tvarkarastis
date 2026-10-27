@@ -46,7 +46,7 @@ class Config:
         self.db_password = get("DB_PASSWORD", "database", "password")
 
         self.gemini_api_key = get("GEMINI_API_KEY", "gemini", "api_key", "")
-        self.gemini_model = get("GEMINI_MODEL", "gemini", "model", "gemini-2.5-flash")
+        self.gemini_model = get("GEMINI_MODEL", "gemini", "model", "gemini-flash-latest")
 
         self.secret_key = get("SECRET_KEY", "app", "secret_key")
         self.debug = get("FLASK_DEBUG", "app", "debug", "false").lower() == "true"
