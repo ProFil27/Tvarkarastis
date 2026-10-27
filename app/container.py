@@ -16,7 +16,9 @@ from app.infrastructure.persistence.schedule_repository import PostgresScheduleR
 from app.infrastructure.persistence.work_shift_repository import PostgresWorkShiftRepository
 # @imports:auth
 
-# @imports:schedule_import
+from app.application.schedule_import_service import ScheduleImportService
+from app.infrastructure.ai.gemini_schedule_recognizer import GeminiScheduleRecognizer
+from app.infrastructure.persistence.pdf_document_repository import PostgresPdfDocumentRepository
 
 # @imports:work_shifts
 
@@ -28,7 +30,7 @@ class Services:
 
 # @fields:auth
 
-# @fields:schedule_import
+    schedule_import: ScheduleImportService | None = None
 
 # @fields:work_shifts
 
@@ -44,7 +46,9 @@ def build_services(settings: Settings) -> Services:
 
 # @build:auth
 
-# @build:schedule_import
+    schedule_import = ScheduleImportService(
+        PostgresPdfDocumentRepository(database), schedules, GeminiScheduleRecognizer(gemini), ai_log, change_notifier
+    )
 
 # @build:work_shifts
 
@@ -53,7 +57,7 @@ def build_services(settings: Settings) -> Services:
     return Services(
 # @kwargs:auth
 
-# @kwargs:schedule_import
+        schedule_import=schedule_import,
 
 # @kwargs:work_shifts
 

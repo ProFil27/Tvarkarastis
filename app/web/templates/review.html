@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Atpažintų duomenų peržiūra{% endblock %}
+{% block content %}
+    <h1>Peržiūrėkite ir patikslinkite atpažintus įrašus</h1>
+    <p>Patikrinkite kiekvieną lauką prieš patvirtindami tvarkaraštį.</p>
+
+    <form method="post" action="{{ url_for('schedule.submit_review') }}">
+        <input type="hidden" name="row_count" value="{{ entries|length }}">
+        <table>
+            <thead>
+                <tr>
+                    <th>Dalykas</th>
+                    <th>Tipas</th>
+                    <th>Diena</th>
+                    <th>Pradžia</th>
+                    <th>Pabaiga</th>
+                    <th>Auditorija</th>
+                    <th>Privaloma</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                    {% set row_errors = errors[loop.index0] %}
+                    <tr>
+                        <td>
+                            <input type="text" name="subject_{{ loop.index0 }}" value="{{ entry.subject }}"
+                                   class="{{ 'invalid' if row_errors.get('subject') }}">
+                            {% if row_errors.get('subject') %}<div class="field-error">{{ row_errors['subject'] }}</div>{% endif %}
+                        </td>
+                        <td>
+                            <select name="event_type_{{ loop.index0 }}" class="{{ 'invalid' if row_errors.get('event_type') }}">
+                                {% for code, label in event_type_choices %}
+                                    <option value="{{ code }}" {% if entry.event_type == code %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if row_errors.get('event_type') %}<div class="field-error">{{ row_errors['event_type'] }}</div>{% endif %}
+                        </td>
+                        <td>
+                            <select name="day_of_week_{{ loop.index0 }}" class="{{ 'invalid' if row_errors.get('day_of_week') }}">
+                                {% for code, label in weekday_choices %}
+                                    <option value="{{ code }}" {% if entry.day_of_week == code %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if row_errors.get('day_of_week') %}<div class="field-error">{{ row_errors['day_of_week'] }}</div>{% endif %}
+                        </td>
+                        <td>
+                            <input type="time" name="start_time_{{ loop.index0 }}" value="{{ entry.start_time }}"
+                                   class="{{ 'invalid' if row_errors.get('start_time') }}">
+                            {% if row_errors.get('start_time') %}<div class="field-error">{{ row_errors['start_time'] }}</div>{% endif %}
+                        </td>
+                        <td>
+                            <input type="time" name="end_time_{{ loop.index0 }}" value="{{ entry.end_time }}"
+                                   class="{{ 'invalid' if row_errors.get('end_time') }}">
+                            {% if row_errors.get('end_time') %}<div class="field-error">{{ row_errors['end_time'] }}</div>{% endif %}
+                        </td>
+                        <td>
+                            <input type="text" name="room_{{ loop.index0 }}" value="{{ entry.room or '' }}">
+                        </td>
+                        <td>
+                            <input type="checkbox" name="is_mandatory_{{ loop.index0 }}" {% if entry.is_mandatory %}checked{% endif %}>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <button type="submit" name="action" value="confirm">Patvirtinti</button>
+        <button type="submit" name="action" value="reject">Atmesti</button>
+    </form>
+{% endblock %}
