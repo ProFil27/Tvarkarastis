@@ -17,24 +17,13 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     app.config["DEBUG_MODE"] = settings.debug if settings else False
     app.extensions["services"] = services
 
-    from app.web.home import home_bp
-
-    app.register_blueprint(home_bp)
-
     from app.web.auth.routes import auth_bp
-
-    app.register_blueprint(auth_bp)
-
+    from app.web.home import home_bp
     from app.web.schedule.routes import schedule_bp
-
-    app.register_blueprint(schedule_bp)
-
+    from app.web.week.routes import week_bp
     from app.web.work_shifts.routes import work_shifts_bp
 
-    app.register_blueprint(work_shifts_bp)
-
-    from app.web.week.routes import week_bp
-
-    app.register_blueprint(week_bp)
+    for blueprint in (home_bp, auth_bp, schedule_bp, work_shifts_bp, week_bp):
+        app.register_blueprint(blueprint)
 
     return app
