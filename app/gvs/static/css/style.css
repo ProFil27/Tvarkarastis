@@ -1,4 +1,4 @@
-/* Tvarkarastis - bendras stilius visiems langams (N: UI darnos reikalavimai) */
+/* Shared stylesheet for all windows (UI consistency requirements) */
 
 body {
     font-family: Arial, Helvetica, sans-serif;
@@ -44,7 +44,7 @@ body {
     margin: 0 auto;
 }
 
-/* Klaidos pranesimas prie lauko - rysku spalva, tekstu (N: pranesimu reikalavimai) */
+/* Field error message: highlighted colour plus text (message requirements) */
 .field-error {
     color: #b00020;
     font-size: 0.9rem;
@@ -56,7 +56,7 @@ input.invalid, select.invalid {
     background-color: #fdecea;
 }
 
-/* Konfliktas savaites vaizde - spalva + tekstinis zymejimas (ne tik spalva) */
+/* Conflict in the week view: colour plus a text label (not colour alone) */
 .conflict {
     background-color: #fdecea;
     border-left: 4px solid #b00020;

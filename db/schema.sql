@@ -1,7 +1,8 @@
--- Tvarkarastis - PostgreSQL schema (1 sprintas)
--- Klasiu diagrama: User, Schedule, Subject, StudyEvent, Workplace, WorkShift,
+-- Tvarkarastis - PostgreSQL schema (sprint 1)
+-- Class diagram: User, Schedule, Subject, StudyEvent, Workplace, WorkShift,
 -- PdfDocument, AiRequest, Conflict, Notification.
--- TimeInterval yra strukturine klase (savaites vaizdas), neissaugoma lenteleje.
+-- TimeInterval is a structural class (the week view) and is not stored in a table.
+-- Enum values are the ASCII domain terms defined in the specification.
 
 CREATE TYPE study_event_type AS ENUM ('PASKAITA', 'PRATYBOS', 'LABORATORINIS_DARBAS');
 
@@ -16,7 +17,7 @@ CREATE TYPE conflict_status AS ENUM ('AKTYVUS', 'IGNORUOTAS', 'ISSPRESTAS');
 
 CREATE TYPE ai_request_type AS ENUM ('ATPAZINIMAS', 'ANALIZE');
 
--- User: naudotojo paskyra (AK komponentas valdo)
+-- User: user account (managed by AK)
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -26,7 +27,7 @@ CREATE TABLE users (
     created_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
--- PdfDocument: naudotojo ikeltas tvarkarascio PDF failas (TVK/AA komponentai)
+-- PdfDocument: uploaded timetable PDF and its recognition status (TVK/AA)
 CREATE TABLE pdf_documents (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -35,7 +36,7 @@ CREATE TABLE pdf_documents (
     uploaded_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
--- Schedule: naudotojo studiju tvarkarastis, turi galiojimo laikotarpi (TVK)
+-- Schedule: the user's study schedule with a validity period (TVK)
 CREATE TABLE schedules (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -45,14 +46,14 @@ CREATE TABLE schedules (
     created_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
--- Subject: studiju dalykas, priklauso tvarkaraščiui (TVK)
+-- Subject: study subject belonging to a schedule (TVK)
 CREATE TABLE subjects (
     id SERIAL PRIMARY KEY,
     schedule_id INTEGER NOT NULL REFERENCES schedules(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL
 );
 
--- StudyEvent: paskaita/pratybos/laboratorinis darbas (TVK)
+-- StudyEvent: lecture / practical / laboratory session (TVK)
 CREATE TABLE study_events (
     id SERIAL PRIMARY KEY,
     schedule_id INTEGER NOT NULL REFERENCES schedules(id) ON DELETE CASCADE,
@@ -66,14 +67,14 @@ CREATE TABLE study_events (
     CONSTRAINT study_event_time_check CHECK (end_time > start_time)
 );
 
--- Workplace: darbdavys (DVK)
+-- Workplace: employer (DVK)
 CREATE TABLE workplaces (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL
 );
 
--- WorkShift: darbo laiko intervalas konkrecia savaites diena (DVK)
+-- WorkShift: working-time interval on a given weekday (DVK)
 CREATE TABLE work_shifts (
     id SERIAL PRIMARY KEY,
     workplace_id INTEGER NOT NULL REFERENCES workplaces(id) ON DELETE CASCADE,
@@ -84,7 +85,7 @@ CREATE TABLE work_shifts (
     CONSTRAINT work_shift_time_check CHECK (end_time > start_time)
 );
 
--- AiRequest: DI agento uzklausos zurnalas (AA/AN komponentai)
+-- AiRequest: AI agent request log (AA/AN)
 CREATE TABLE ai_requests (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -96,7 +97,7 @@ CREATE TABLE ai_requests (
     error_message TEXT
 );
 
--- Conflict: studiju ivykio ir darbo pamainos laiko sutapimas (KVK/AN)
+-- Conflict: time overlap between a study event and a work shift (KVK/AN)
 CREATE TABLE conflicts (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -107,7 +108,7 @@ CREATE TABLE conflicts (
     status conflict_status NOT NULL DEFAULT 'AKTYVUS'
 );
 
--- Notification: pranesimas naudotojui apie konflikta (KVK)
+-- Notification: in-system message to the user about a conflict (KVK)
 CREATE TABLE notifications (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

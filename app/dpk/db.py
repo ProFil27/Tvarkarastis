@@ -1,9 +1,9 @@
-"""DPK (Duomenu prieigos komponentas).
+"""DPK (data access component).
 
-Vienintele vieta sistemoje, kuri tiesiogiai kreipiasi i PostgreSQL duomenu baze
-(N-02). Kiti komponentai (AK, TVK, DVK, KVK, AA, AN) duomenu baze turi pasiekti
-tik per sita modulį arba per repository funkcijas, kurias teammate'ai pries
-(dpk.users, dpk.schedules, ...), o ne per savo pacius psycopg2 kvietimus.
+The only place in the system that talks to PostgreSQL directly (N-02). Other
+components (AK, TVK, DVK, KVK, AA, AN) must reach the database through this
+module or through the repository modules built on it (dpk.users,
+dpk.schedules, ...), never through their own psycopg2 calls.
 """
 
 from contextlib import contextmanager
@@ -32,14 +32,14 @@ def init_pool(config, minconn: int = 1, maxconn: int = 10) -> None:
 
 @contextmanager
 def get_cursor(commit: bool = False):
-    """Suteikia dict-stiliaus kursoriu vienai duomenu bazes operacijai.
+    """Yield a dict-style cursor for a single database operation.
 
-    Naudojimas:
+    Usage:
         with get_cursor(commit=True) as cur:
             cur.execute("INSERT INTO users (...) VALUES (...)", (...))
     """
     if _pool is None:
-        raise RuntimeError("DPK duomenu bazes jungciu tekle neinicializuota (init_pool).")
+        raise RuntimeError("DPK connection pool is not initialised (call init_pool).")
 
     conn = _pool.getconn()
     try:

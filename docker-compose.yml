@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # Vykdoma tik pirma karta, kai duomenu aplankas tuscias.
+      # Runs only on first start, while the data directory is empty.
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
@@ -22,10 +22,10 @@ services:
       db:
         condition: service_healthy
     ports:
-      # N-05: naršyklė jungiasi per localhost
+      # N-05: the browser connects over localhost
       - "127.0.0.1:5000:5000"
     volumes:
-      # kodo pakeitimai matomi be perkrovimo (Flask debug reloader)
+      # code changes are picked up without rebuilding (Flask debug reloader)
       - ./app:/app/app
 
 volumes:

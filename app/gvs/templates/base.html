@@ -10,11 +10,7 @@
         <span class="navbar-brand">Tvarkarastis</span>
         <ul class="navbar-links">
             <li><a href="{{ url_for('gvs.index') }}">Pagrindinis</a></li>
-            {# Kiekviena komandos dalis prideda sava nuoroda cia, pvz.:
-               <li><a href="{{ url_for('ak.login') }}">Prisijungti</a></li>
-               <li><a href="{{ url_for('tvk.upload') }}">Tvarkarascio ikelimas</a></li>
-               <li><a href="{{ url_for('dvk.shifts') }}">Darbo valandos</a></li>
-               <li><a href="{{ url_for('tvk.week_view') }}">Savaites vaizdas</a></li> #}
+            {# Each component adds its own navigation link here. #}
         </ul>
     </nav>
 

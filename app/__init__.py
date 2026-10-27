@@ -13,7 +13,7 @@ def create_app() -> Flask:
 
     dpk_db.init_pool(config)
 
-    # Kiekviena komandos dalis registruoja sava blueprint'a cia.
+    # Each component registers its blueprint here.
     # Pvz.: from app.ak.routes import ak_bp; app.register_blueprint(ak_bp)
     from app.gvs.routes import gvs_bp
 

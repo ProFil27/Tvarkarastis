@@ -1,51 +1,51 @@
 # https://taskfile.dev  (Windows: winget install Task.Task)
-# Pagrindinis irasymo taskas: `task` (arba `task up`) - paleidzia viska automatiskai.
+# Entry point: `task` (or `task up`) starts everything automatically.
 version: "3"
 
 tasks:
   default:
-    desc: Paleisti visa sistema (DB + aplikacija)
+    desc: Start the whole system (DB + application)
     cmds:
       - task: up
 
   env:
-    desc: Sukurti .env is .env.example, jei jo dar nera
+    desc: Create .env from .env.example if it does not exist
     status:
       - test -f .env
     cmds:
       - cp .env.example .env
-      - echo "Sukurtas .env - uzpildykite GEMINI_API_KEY ir slaptazodzius, tada paleiskite 'task up' dar karta."
+      - echo "Created .env - fill in GEMINI_API_KEY and the passwords, then run 'task up' again."
       - exit 1
 
   up:
-    desc: Sukurti ir paleisti DB bei aplikacija (http://127.0.0.1:5000)
+    desc: Build and start the DB and the application (http://127.0.0.1:5000)
     deps: [env]
     cmds:
       - docker compose up --build -d
-      - echo "Sistema veikia - http://127.0.0.1:5000"
+      - echo "System is running - http://127.0.0.1:5000"
 
   down:
-    desc: Sustabdyti sistema (duomenys islieka)
+    desc: Stop the system (data is kept)
     cmds:
       - docker compose down
 
   reset:
-    desc: Sustabdyti ir istrinti DB duomenis (schema bus sukurta is naujo)
+    desc: Stop and delete DB data (the schema is recreated on next start)
     cmds:
       - docker compose down -v
 
   logs:
-    desc: Rodyti aplikacijos zurnala
+    desc: Follow the application log
     cmds:
       - docker compose logs -f app
 
   seed:
-    desc: Ikelti demonstracinius duomenis (db/seed.sql, N-16)
+    desc: Load demo data (db/seed.sql, N-16)
     cmds:
       - docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < db/seed.sql
 
   psql:
-    desc: Atidaryti psql konsole
+    desc: Open a psql shell
     interactive: true
     cmds:
       - docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'

@@ -6,7 +6,7 @@ _CONFIG_PATH = os.path.join(_ROOT, "config.ini")
 
 
 def _load_dotenv(path: str) -> None:
-    """Paprastas .env skaitytuvas (vietinis paleidimas be Docker); jau nustatytu aplinkos kintamuju neperraso."""
+    """Minimal .env reader for running without Docker; never overrides existing env vars."""
     if not os.path.exists(path):
         return
     with open(path, encoding="utf-8") as f:
@@ -19,7 +19,7 @@ def _load_dotenv(path: str) -> None:
 
 
 class Config:
-    """Konfiguracija: aplinkos kintamieji (.env / Docker) turi pirmenybe prieš config.ini (N-22)."""
+    """Application settings. Environment variables (.env / Docker) take precedence over config.ini (N-22)."""
 
     def __init__(self, path: str = _CONFIG_PATH):
         _load_dotenv(os.path.join(_ROOT, ".env"))
@@ -36,7 +36,7 @@ class Config:
             if fallback is not None:
                 return fallback
             raise RuntimeError(
-                f"Truksta konfiguracijos: nustatykite {env} (.env) arba [{section}] {option} (config.ini)."
+                f"Missing configuration: set {env} (.env) or [{section}] {option} (config.ini)."
             )
 
         self.db_host = get("DB_HOST", "database", "host", "localhost")
