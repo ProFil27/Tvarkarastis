@@ -74,7 +74,9 @@ class ScheduleImportService:
         self._on_schedule_saved = on_schedule_saved
         self._today = today
 
-    def upload_and_recognize(self, user_id: int, filename: str, content: bytes, consent_given: bool) -> RecognizedUpload:
+    def upload_and_recognize(
+        self, user_id: int, filename: str, content: bytes, consent_given: bool
+    ) -> RecognizedUpload:
         """Validate the file, run AI recognition and return rows for review.
 
         Raises ValidationFailed (field "file") or RecognitionFailed.

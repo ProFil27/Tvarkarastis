@@ -8,14 +8,19 @@ from app.domain.weekday import Weekday
 from app.web.filters import initials, plural_lt, timeline
 
 
-@pytest.mark.parametrize("name,expected", [("Edvinas Rudys", "ER"), ("jonas", "J"), ("a b c", "AB"), ("", "?"), (None, "?")])
+@pytest.mark.parametrize(
+    "name,expected", [("Edvinas Rudys", "ER"), ("jonas", "J"), ("a b c", "AB"), ("", "?"), (None, "?")]
+)
 def test_initials(name, expected):
     assert initials(name) == expected
 
 
 @pytest.mark.parametrize(
     "count,expected",
-    [(0, "pamainų"), (1, "pamaina"), (2, "pamainos"), (9, "pamainos"), (10, "pamainų"), (11, "pamainų"), (21, "pamaina"), (22, "pamainos")],
+    [
+        (0, "pamainų"), (1, "pamaina"), (2, "pamainos"), (9, "pamainos"),
+        (10, "pamainų"), (11, "pamainų"), (21, "pamaina"), (22, "pamainos"),
+    ],
 )
 def test_lithuanian_plural(count, expected):
     assert plural_lt(count, "pamaina", "pamainos", "pamainų") == expected

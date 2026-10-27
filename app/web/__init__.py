@@ -1,6 +1,9 @@
 """Web layer (Flask): HTTP routes and HTML templates. Contains no business logic."""
 
-from flask import Flask
+import logging
+
+from flask import Flask, render_template
+from werkzeug.exceptions import HTTPException
 
 from app.container import Services, build_services
 from app.infrastructure.config import Settings
@@ -34,5 +37,13 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
 
     for blueprint in (home_bp, auth_bp, schedule_bp, work_shifts_bp, week_bp):
         app.register_blueprint(blueprint)
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(error):
+        """N-11: show an understandable message instead of crashing (e.g. database unavailable)."""
+        if isinstance(error, HTTPException):
+            return error
+        logging.getLogger(__name__).exception("Unhandled error")
+        return render_template("error.html"), 500
 
     return app

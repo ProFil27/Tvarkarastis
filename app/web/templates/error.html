@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Klaida{% endblock %}
+{% block content %}
+    <div class="card">
+        <h2 style="color:var(--bad)">Įvyko klaida</h2>
+        <div class="sub" style="margin:8px 0 16px">
+            Sistema laikinai negali įvykdyti veiksmo (pavyzdžiui, nepasiekiama duomenų bazė ar DI paslauga).
+            Anksčiau patvirtinti duomenys nepakeisti. Bandykite dar kartą po kelių minučių.
+        </div>
+        <a class="btn p" href="{{ url_for('home.index') }}">Grįžti į pradžią</a>
+    </div>
+{% endblock %}
