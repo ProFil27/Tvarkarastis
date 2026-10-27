@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Tvarkarastis{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <span class="navbar-brand">Tvarkarastis</span>
+        <ul class="navbar-links">
+            <li><a href="{{ url_for('gvs.index') }}">Pagrindinis</a></li>
+            {# Kiekviena komandos dalis prideda sava nuoroda cia, pvz.:
+               <li><a href="{{ url_for('ak.login') }}">Prisijungti</a></li>
+               <li><a href="{{ url_for('tvk.upload') }}">Tvarkarascio ikelimas</a></li>
+               <li><a href="{{ url_for('dvk.shifts') }}">Darbo valandos</a></li>
+               <li><a href="{{ url_for('tvk.week_view') }}">Savaites vaizdas</a></li> #}
+        </ul>
+    </nav>
+
+    <main class="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flash-messages">
+                    {% for category, message in messages %}
+                        <li class="flash flash-{{ category }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
