@@ -1,73 +1,111 @@
 {% extends "base.html" %}
-{% block title %}Savaitės vaizdas{% endblock %}
+{% block title %}Savaitės tvarkaraštis{% endblock %}
 {% block content %}
-    <h1>Savaitės vaizdas</h1>
+    <div class="head">
+        <div>
+            <h1>Savaitės tvarkaraštis</h1>
+            <div class="sub">Studijos, darbas ir aptikti konfliktai</div>
+        </div>
+        <div class="week">
+            <a class="arr" href="{{ url_for('week.view', week=week.previous_week.isoformat()) }}" title="Ankstesnė savaitė">‹</a>
+            <div class="card" style="margin:0;padding:10px 18px;font-weight:600">
+                {{ week.week_start.isoformat() }} – {{ week.week_end.isoformat() }}
+            </div>
+            <a class="arr" href="{{ url_for('week.view', week=week.next_week.isoformat()) }}" title="Kita savaitė">›</a>
+        </div>
+    </div>
 
     {% for n in notifications %}
         <div class="flash flash-error">
             {{ n.message }}
-            <form method="post" action="{{ url_for('week.dismiss_notification', notification_id=n.id) }}" style="display:inline">
-                <button type="submit">Uždaryti</button>
+            <form method="post" action="{{ url_for('week.dismiss_notification', notification_id=n.id) }}">
+                <button type="submit" class="btn d">Uždaryti</button>
             </form>
         </div>
     {% endfor %}
 
-    <p>
-        <a href="{{ url_for('week.view', week=week.previous_week.isoformat()) }}">&laquo; Ankstesnė savaitė</a>
-        |
-        {{ week.week_start.isoformat() }} – {{ week.week_end.isoformat() }}
-        |
-        <a href="{{ url_for('week.view', week=week.next_week.isoformat()) }}">Kita savaitė &raquo;</a>
-    </p>
-
     {% if not week.has_data %}
-        <p>Duomenų nėra. <a href="{{ url_for('schedule.upload') }}">Įkelkite tvarkaraštį</a>.</p>
+        <div class="card">
+            <h2>Duomenų nėra</h2>
+            <div class="sub" style="margin-bottom:16px">Įkelkite universiteto tvarkaraštį ir pridėkite darbo valandas.</div>
+            <a class="btn p" href="{{ url_for('schedule.upload') }}">Įkelti tvarkaraštį</a>
+            <a class="btn s" href="{{ url_for('work_shifts.list_shifts') }}">Pridėti darbo valandas</a>
+        </div>
+    {% else %}
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+            <a class="btn s" href="{{ url_for('schedule.upload') }}">Įkelti naują tvarkaraštį</a>
+        </div>
     {% endif %}
 
-    <table>
-        <thead>
-            <tr><th>Diena</th><th>Paskaitos</th><th>Darbo pamainos</th><th>Būsena</th></tr>
-        </thead>
-        <tbody>
+    <div class="card" style="padding:0;overflow:hidden">
+        <table>
+            <tr>
+                <th style="padding-left:24px">Diena</th><th>Studijos</th><th>Darbas</th><th>Būsena</th>
+            </tr>
             {% for day in week.days %}
-                <tr>
-                    <td>{{ day.weekday.label }}<br><small>{{ day.date.isoformat() }}</small></td>
+                <tr class="{{ 'row-bad' if day.has_conflict }}">
+                    <td style="padding-left:24px"><b>{{ day.weekday.label }}</b><div class="hint">{{ day.date.isoformat() }}</div></td>
                     <td>
                         {% for item in day.events %}
-                            <div class="{{ 'conflict' if item.has_conflict }}">
-                                {{ item.event.subject_name }}
-                                {{ item.event.start_time.strftime('%H:%M') }}–{{ item.event.end_time.strftime('%H:%M') }}
-                                {% if item.event.room %}({{ item.event.room }}){% endif %}
-                                {% if item.has_conflict %}<span class="conflict-label">Konfliktas</span>{% endif %}
-                            </div>
+                            <span class="ev">
+                                <span class="chip study">{{ item.event.start_time.strftime('%H:%M') }}–{{ item.event.end_time.strftime('%H:%M') }}</span>
+                                {{ item.event.subject_name }}{% if item.event.room %} <span class="hint">({{ item.event.room }})</span>{% endif %}
+                            </span>
+                        {% else %}
+                            <span class="empty">—</span>
                         {% endfor %}
                     </td>
                     <td>
                         {% for item in day.shifts %}
-                            <div class="{{ 'conflict' if item.has_conflict }}">
+                            <span class="ev">
+                                <span class="chip work">{{ item.shift.start_time.strftime('%H:%M') }}–{{ item.shift.end_time.strftime('%H:%M') }}</span>
                                 {{ item.shift.workplace_name }}
-                                {{ item.shift.start_time.strftime('%H:%M') }}–{{ item.shift.end_time.strftime('%H:%M') }}
-                                {% if item.has_conflict %}<span class="conflict-label">Konfliktas</span>{% endif %}
-                            </div>
+                            </span>
+                        {% else %}
+                            <span class="empty">—</span>
                         {% endfor %}
                     </td>
                     <td>
                         {% if day.has_conflict %}
-                            <span class="conflict-label">Konfliktas</span>
-                            {% for c in day.conflicts %}
-                                <details>
-                                    <summary>{{ c.event.subject_name }}</summary>
-                                    Paskaita: {{ c.event.subject_name }} {{ c.event.start_time.strftime('%H:%M') }}–{{ c.event.end_time.strftime('%H:%M') }}<br>
-                                    Pamaina: {{ c.shift.workplace_name }} {{ c.shift.start_time.strftime('%H:%M') }}–{{ c.shift.end_time.strftime('%H:%M') }}<br>
-                                    Sutapimo trukmė: {{ c.overlap_minutes }} min.
-                                </details>
-                            {% endfor %}
+                            <span class="badge bad">⚠ Konfliktas</span>
                         {% else %}
-                            <span class="status-ok">OK</span>
+                            <span class="badge ok">✓ OK</span>
                         {% endif %}
                     </td>
                 </tr>
             {% endfor %}
-        </tbody>
-    </table>
+        </table>
+    </div>
+
+    {% set conflicts = [] %}
+    {% for day in week.days %}{% for c in day.conflicts %}{% if conflicts.append(c) %}{% endif %}{% endfor %}{% endfor %}
+    {% if conflicts %}
+        <div class="alert">
+            <div class="i">⚠️</div>
+            <div style="flex:1">
+                <h2 style="color:var(--bad)">Konflikto informacija</h2>
+                {% for c in conflicts %}
+                    {% set bar = c|timeline %}
+                    <div class="conflict-item">
+                        <div>
+                            {{ c.event.subject_name }} ({{ c.event.event_type|event_type_label }})
+                            <b>{{ c.event.start_time.strftime('%H:%M') }}–{{ c.event.end_time.strftime('%H:%M') }}</b>
+                            sutampa su darbo pamaina
+                            <b>{{ c.shift.start_time.strftime('%H:%M') }}–{{ c.shift.end_time.strftime('%H:%M') }}</b>
+                            ({{ c.shift.workplace_name }}).
+                        </div>
+                        <div style="margin-top:4px">Sutapimo trukmė: <b>{{ c.overlap_minutes }} min.</b></div>
+                        <div class="bar">
+                            <i style="left:{{ bar.event_left }}%;width:{{ bar.event_width }}%;background:#C7CCF5"></i>
+                            <i style="left:{{ bar.overlap_left }}%;width:{{ bar.overlap_width }}%;background:var(--bad)"></i>
+                            <i style="left:{{ bar.shift_left }}%;width:{{ bar.shift_width }}%;background:rgba(14,107,131,.35);z-index:0"></i>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <form method="post" action="{{ url_for('week.recheck_conflicts') }}" style="align-self:flex-start">
+                <button type="submit" class="btn s">Atnaujinti konfliktų patikrą</button>
+            </form>
+        </div>
+    {% endif %}
 {% endblock %}

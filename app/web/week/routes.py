@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from flask import Blueprint, redirect, render_template, url_for
+from flask import Blueprint, flash, redirect, render_template, url_for
 
 from app.web.context import current_user_id, login_required, services
 
@@ -31,4 +31,12 @@ def view(week):
 @login_required
 def dismiss_notification(notification_id):
     services().week_view.dismiss_notification(current_user_id(), notification_id)
+    return redirect(url_for("week.view"))
+
+
+@week_bp.route("/recheck", methods=["POST"])
+@login_required
+def recheck_conflicts():
+    services().conflicts.run_check(current_user_id())
+    flash("Konfliktų patikra atnaujinta.", "success")
     return redirect(url_for("week.view"))

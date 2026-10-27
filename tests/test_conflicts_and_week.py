@@ -80,7 +80,22 @@ def test_week_page_shows_conflict_notification_and_dismiss_works():
 
     page = client.get("/week/2026-10-26").get_data(as_text=True)
     assert "Aptiktas konfliktas: pirmadienis 09:00–10:30" in page
-    assert "Sutapimo trukmė: 30 min." in page
+    assert "Sutapimo trukmė" in page and "<b>30 min.</b>" in page
 
     client.post("/week/notifications/1/dismiss")
     assert "Aptiktas konfliktas: pirmadienis" not in client.get("/week/2026-10-26").get_data(as_text=True)
+
+
+def test_recheck_button_runs_the_conflict_check_again():
+    service, schedules, shifts, conflicts, notifications, ai_log = make_conflicts(
+        fakes.FakeAnalyzer([DetectedConflict(1, 1, 30)])
+    )
+    schedules.add(1, None, date.today(), date.today(), [sample_event()])
+    shifts.add(1, "Kavine", Weekday.MONDAY, time(10, 0), time(14, 0))
+    week_view = WeekViewService(schedules, shifts, conflicts, notifications)
+    client = create_app(services=Services(conflicts=service, week_view=week_view)).test_client()
+    with client.session_transaction() as session:
+        session["user_id"] = 1
+
+    assert client.post("/week/recheck").status_code == 302
+    assert len(ai_log.requests) == 1 and len(conflicts.list_active(1)) == 1

@@ -84,7 +84,7 @@ def test_full_flow_upload_review_confirm_and_conflict_in_week_view(client):
 
     page = client.get("/week/2026-10-26").get_data(as_text=True)
     assert "Aptiktas konfliktas: pirmadienis 09:00–10:30" in page
-    assert "Sutapimo trukmė: 30 min." in page
+    assert "Sutapimo trukmė" in page and "<b>30 min.</b>" in page
 
 
 def test_upload_rejects_missing_consent(client):

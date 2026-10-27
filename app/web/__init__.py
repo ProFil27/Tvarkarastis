@@ -17,6 +17,15 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     app.config["DEBUG_MODE"] = settings.debug if settings else False
     app.extensions["services"] = services
 
+    from app.web import filters
+
+    app.jinja_env.filters.update(
+        initials=filters.initials,
+        plural_lt=filters.plural_lt,
+        event_type_label=filters.event_type_label,
+        timeline=filters.timeline,
+    )
+
     from app.web.auth.routes import auth_bp
     from app.web.home import home_bp
     from app.web.schedule.routes import schedule_bp
