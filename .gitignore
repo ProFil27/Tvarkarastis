@@ -8,3 +8,5 @@ config.ini
 uploads/
 .vscode/
 .idea/
+.coverage
+.pytest_cache/

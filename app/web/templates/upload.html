@@ -1,22 +1,39 @@
 {% extends "base.html" %}
 {% block title %}Tvarkaraščio įkėlimas{% endblock %}
 {% block content %}
-    <h1>Įkelti universiteto tvarkaraštį (PDF)</h1>
-
-    {% if error %}<div class="field-error">{{ error }}</div>{% endif %}
-
-    <form method="post" enctype="multipart/form-data" novalidate>
+    <div class="head">
         <div>
-            <label for="pdf_file">PDF failas (ne didesnis nei 10 MB)</label>
-            <input type="file" id="pdf_file" name="pdf_file" accept="application/pdf">
+            <h1>Tvarkaraščio įkėlimas</h1>
+            <div class="sub">Įkelkite PDF, peržiūrėkite atpažintus įrašus ir patvirtinkite</div>
         </div>
-        <div>
-            <label>
+    </div>
+    {% with step=1 %}{% include "_steps.html" %}{% endwith %}
+
+    <div class="card">
+        <h2>Universiteto tvarkaraštis (PDF)</h2>
+        <div class="sub" style="margin-bottom:16px">Dydis iki 10 MB</div>
+        <form method="post" enctype="multipart/form-data" novalidate>
+            <div class="drop">
+                <div class="ico">📄</div>
+                <div style="flex:1">
+                    <b id="file-name">Failas nepasirinktas</b>
+                    <div class="hint">Tik PDF formatas</div>
+                </div>
+                <label class="btn s" for="pdf_file">Pasirinkti failą</label>
+                <input class="file-input" type="file" id="pdf_file" name="pdf_file" accept="application/pdf">
+            </div>
+            {% if error %}<div class="field-error">{{ error }}</div>{% endif %}
+            <label class="consent">
                 <input type="checkbox" name="ai_consent">
-                Sutinku, kad šis failas būtų išsiųstas DI paslaugos tiekėjui (Google Gemini)
-                tvarkaraščio duomenims atpažinti.
+                <span>Sutinku, kad PDF turinys būtų siunčiamas DI paslaugos tiekėjui atpažinimui.</span>
             </label>
-        </div>
-        <button type="submit">Įkelti</button>
-    </form>
+            <button type="submit" class="btn p">Įkelti ir atpažinti</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById("pdf_file").addEventListener("change", function () {
+            document.getElementById("file-name").textContent = this.files.length ? this.files[0].name : "Failas nepasirinktas";
+        });
+    </script>
 {% endblock %}

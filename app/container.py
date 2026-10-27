@@ -7,41 +7,37 @@ this file and the adapters, not the services (N-19).
 
 from dataclasses import dataclass
 
+from app.application.auth_service import AuthService
 from app.application.change_notifier import ChangeNotifier
+from app.application.conflict_service import ConflictService
+from app.application.schedule_import_service import ScheduleImportService
+from app.application.week_view_service import WeekViewService
+from app.application.work_shift_service import WorkShiftService
 from app.infrastructure.ai.gemini_client import GeminiClient
+from app.infrastructure.ai.gemini_conflict_analyzer import GeminiConflictAnalyzer
+from app.infrastructure.ai.gemini_schedule_recognizer import GeminiScheduleRecognizer
 from app.infrastructure.config import Settings
 from app.infrastructure.database import Database
 from app.infrastructure.persistence.ai_request_log import PostgresAiRequestLog
-from app.infrastructure.persistence.schedule_repository import PostgresScheduleRepository
-from app.infrastructure.persistence.work_shift_repository import PostgresWorkShiftRepository
-from app.application.auth_service import AuthService
-from app.infrastructure.persistence.user_repository import PostgresUserRepository
-from app.infrastructure.security import WerkzeugPasswordHasher
-
-from app.application.schedule_import_service import ScheduleImportService
-from app.infrastructure.ai.gemini_schedule_recognizer import GeminiScheduleRecognizer
-from app.infrastructure.persistence.pdf_document_repository import PostgresPdfDocumentRepository
-
-from app.application.work_shift_service import WorkShiftService
-
-from app.application.conflict_service import ConflictService
-from app.application.week_view_service import WeekViewService
-from app.infrastructure.ai.gemini_conflict_analyzer import GeminiConflictAnalyzer
 from app.infrastructure.persistence.conflict_repository import PostgresConflictRepository
 from app.infrastructure.persistence.notification_repository import PostgresNotificationRepository
+from app.infrastructure.persistence.pdf_document_repository import PostgresPdfDocumentRepository
+from app.infrastructure.persistence.schedule_repository import PostgresScheduleRepository
+from app.infrastructure.persistence.user_repository import PostgresUserRepository
+from app.infrastructure.persistence.work_shift_repository import PostgresWorkShiftRepository
+from app.infrastructure.security import WerkzeugPasswordHasher
+
 
 @dataclass(frozen=True)
 class Services:
     """Application services used by the web layer. Fields default to None so tests can wire only what they need."""
 
     auth: AuthService | None = None
-
     schedule_import: ScheduleImportService | None = None
-
     work_shifts: WorkShiftService | None = None
-
     conflicts: ConflictService | None = None
     week_view: WeekViewService | None = None
+
 
 def build_services(settings: Settings) -> Services:
     database = Database(settings)
@@ -69,11 +65,8 @@ def build_services(settings: Settings) -> Services:
 
     return Services(
         auth=auth,
-
         schedule_import=schedule_import,
-
         work_shifts=work_shifts,
-
         conflicts=conflicts,
         week_view=week_view,
     )

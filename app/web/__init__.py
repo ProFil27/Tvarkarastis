@@ -1,6 +1,9 @@
 """Web layer (Flask): HTTP routes and HTML templates. Contains no business logic."""
 
-from flask import Flask
+import logging
+
+from flask import Flask, render_template
+from werkzeug.exceptions import HTTPException
 
 from app.container import Services, build_services
 from app.infrastructure.config import Settings
@@ -17,24 +20,30 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     app.config["DEBUG_MODE"] = settings.debug if settings else False
     app.extensions["services"] = services
 
-    from app.web.home import home_bp
+    from app.web import filters
 
-    app.register_blueprint(home_bp)
+    app.jinja_env.filters.update(
+        initials=filters.initials,
+        plural_lt=filters.plural_lt,
+        event_type_label=filters.event_type_label,
+        timeline=filters.timeline,
+    )
 
     from app.web.auth.routes import auth_bp
-
-    app.register_blueprint(auth_bp)
-
+    from app.web.home import home_bp
     from app.web.schedule.routes import schedule_bp
-
-    app.register_blueprint(schedule_bp)
-
+    from app.web.week.routes import week_bp
     from app.web.work_shifts.routes import work_shifts_bp
 
-    app.register_blueprint(work_shifts_bp)
+    for blueprint in (home_bp, auth_bp, schedule_bp, work_shifts_bp, week_bp):
+        app.register_blueprint(blueprint)
 
-    from app.web.week.routes import week_bp
-
-    app.register_blueprint(week_bp)
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(error):
+        """N-11: show an understandable message instead of crashing (e.g. database unavailable)."""
+        if isinstance(error, HTTPException):
+            return error
+        logging.getLogger(__name__).exception("Unhandled error")
+        return render_template("error.html"), 500
 
     return app

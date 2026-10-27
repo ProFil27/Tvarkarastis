@@ -24,6 +24,7 @@ def register():
         )
 
     session["user_id"] = user.id
+    session["user_name"] = user.name
     flash("Registracija sėkminga.", "success")
     return redirect(url_for("home.index"))
 
@@ -39,6 +40,7 @@ def login():
         return render_template("login.html", error=messages.LOGIN_FAILED, form={"email": email})
 
     session["user_id"] = user.id
+    session["user_name"] = user.name
     return redirect(url_for("home.index"))
 
 

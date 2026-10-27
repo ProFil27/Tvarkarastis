@@ -66,7 +66,9 @@ class ScheduleRepository(Protocol):
 
 
 class WorkShiftRepository(Protocol):
-    def add(self, user_id: int, workplace_name: str, weekday: Weekday, start_time: time, end_time: time) -> WorkShift: ...
+    def add(
+        self, user_id: int, workplace_name: str, weekday: Weekday, start_time: time, end_time: time
+    ) -> WorkShift: ...
 
     def list_for_user(self, user_id: int) -> list[WorkShift]: ...
 

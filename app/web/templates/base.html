@@ -2,45 +2,29 @@
 <html lang="lt">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}Tvarkarastis{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Tvarkaraštis{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
-    <nav class="navbar">
-        <span class="navbar-brand">Tvarkarastis</span>
-        <ul class="navbar-links">
-            <li><a href="{{ url_for('home.index') }}">Pagrindinis</a></li>
-            {% if session.get('user_id') %}
-                <li><a href="{{ url_for('week.view') }}">Savaitės vaizdas</a></li>
-
-                <li><a href="{{ url_for('schedule.upload') }}">Tvarkaraščio įkėlimas</a></li>
-
-                <li><a href="{{ url_for('work_shifts.list_shifts') }}">Darbo valandos</a></li>
-
-                <li>
-                    <form method="post" action="{{ url_for('auth.logout') }}" style="display:inline">
-                        <button type="submit" class="btn">Atsijungti</button>
-                    </form>
-                </li>
-            {% else %}
-                <li><a href="{{ url_for('auth.login') }}">Prisijungti</a></li>
-                <li><a href="{{ url_for('auth.register') }}">Registruotis</a></li>
-            {% endif %}
-        </ul>
-    </nav>
-
-    <main class="content">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <ul class="flash-messages">
-                    {% for category, message in messages %}
-                        <li class="flash flash-{{ category }}">{{ message }}</li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-        {% endwith %}
-
+<body class="{% block body_class %}{% endblock %}">
+{% block layout %}
+    <div class="nav">
+        <a class="brand" href="{{ url_for('home.index') }}"><div class="logo">▦</div>Tvarkaraštis</a>
+        <div class="tabs">
+            <a class="tab {{ 'on' if request.blueprint in ('week', 'schedule') }}" href="{{ url_for('week.view') }}">Tvarkaraštis</a>
+            <a class="tab {{ 'on' if request.blueprint == 'work_shifts' }}" href="{{ url_for('work_shifts.list_shifts') }}">Darbo valandos</a>
+        </div>
+        <div class="user">
+            <div class="avatar">{{ session.get('user_name')|initials }}</div>
+            <form method="post" action="{{ url_for('auth.logout') }}">
+                <button type="submit" class="out">Atsijungti</button>
+            </form>
+        </div>
+    </div>
+    <div class="wrap">
+        {% include "_flashes.html" %}
         {% block content %}{% endblock %}
-    </main>
+    </div>
+{% endblock %}
 </body>
 </html>

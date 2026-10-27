@@ -42,17 +42,16 @@ class GeminiConflictAnalyzer:
 
 
 def _serialize(events: list[StudyEvent], shifts: list[WorkShift]) -> str:
+    def interval(item) -> dict:
+        return {
+            "id": item.id,
+            "day_of_week": item.weekday.value,
+            "start": format_time(item.start_time),
+            "end": format_time(item.end_time),
+        }
+
     return json.dumps(
-        {
-            "study_events": [
-                {"id": e.id, "day_of_week": e.weekday.value, "start": format_time(e.start_time), "end": format_time(e.end_time)}
-                for e in events
-            ],
-            "work_shifts": [
-                {"id": s.id, "day_of_week": s.weekday.value, "start": format_time(s.start_time), "end": format_time(s.end_time)}
-                for s in shifts
-            ],
-        },
+        {"study_events": [interval(e) for e in events], "work_shifts": [interval(s) for s in shifts]},
         ensure_ascii=False,
     )
 
