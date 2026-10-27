@@ -18,7 +18,7 @@ from app.infrastructure.persistence.work_shift_repository import PostgresWorkShi
 
 # @imports:schedule_import
 
-# @imports:work_shifts
+from app.application.work_shift_service import WorkShiftService
 
 # @imports:conflicts
 
@@ -30,7 +30,7 @@ class Services:
 
 # @fields:schedule_import
 
-# @fields:work_shifts
+    work_shifts: WorkShiftService | None = None
 
 # @fields:conflicts
 
@@ -46,7 +46,7 @@ def build_services(settings: Settings) -> Services:
 
 # @build:schedule_import
 
-# @build:work_shifts
+    work_shifts = WorkShiftService(shifts, change_notifier)
 
 # @build:conflicts
 
@@ -55,7 +55,7 @@ def build_services(settings: Settings) -> Services:
 
 # @kwargs:schedule_import
 
-# @kwargs:work_shifts
+        work_shifts=work_shifts,
 
 # @kwargs:conflicts
     )
