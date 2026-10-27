@@ -3,11 +3,13 @@
 Studentu tvarkaraščių planavimo asistentas - 1 sprinto prototipas.
 Pilna specifikacija: žr. komandos Word dokumentą (ISPK ... 1sprintas).
 
-## Architektūra (Clean Architecture)
+## Architektūra 
 
 Kodas skirstomas į sluoksnius; priklausomybės eina tik į vidų (`web` → `application` → `domain`).
 `infrastructure` įgyvendina `application` sluoksnio sąsajas (ports), todėl DB ar DI tiekėją galima
 pakeisti nekeičiant verslo logikos (N-18, N-19).
+
+Schedule-import done
 
 ```
 app/
