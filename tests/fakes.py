@@ -167,5 +167,5 @@ class FakeAnalyzer:
 
     def analyze(self, events, shifts):
         if self.fail:
-            raise AnalysisFailed("boom", 3)
+            raise AnalysisFailed("Failed", 3)
         return AnalysisResult(list(self.detected), 1)

@@ -1,11 +1,8 @@
-"""Work shift management (F-09, F-10)."""
-
 from app.application.errors import ValidationFailed
 from app.application.ports import WorkShiftRepository
 from app.application.validation import ChangeListener, ignore_changes, parse_time, validate_time_range
 from app.domain.entities import WorkShift
 from app.domain.weekday import Weekday
-
 
 class WorkShiftService:
     def __init__(self, shifts: WorkShiftRepository, on_change: ChangeListener = ignore_changes):
