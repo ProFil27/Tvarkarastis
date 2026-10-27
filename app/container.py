@@ -20,7 +20,11 @@ from app.infrastructure.persistence.work_shift_repository import PostgresWorkShi
 
 # @imports:work_shifts
 
-# @imports:conflicts
+from app.application.conflict_service import ConflictService
+from app.application.week_view_service import WeekViewService
+from app.infrastructure.ai.gemini_conflict_analyzer import GeminiConflictAnalyzer
+from app.infrastructure.persistence.conflict_repository import PostgresConflictRepository
+from app.infrastructure.persistence.notification_repository import PostgresNotificationRepository
 
 @dataclass(frozen=True)
 class Services:
@@ -32,7 +36,8 @@ class Services:
 
 # @fields:work_shifts
 
-# @fields:conflicts
+    conflicts: ConflictService | None = None
+    week_view: WeekViewService | None = None
 
 def build_services(settings: Settings) -> Services:
     database = Database(settings)
@@ -48,7 +53,13 @@ def build_services(settings: Settings) -> Services:
 
 # @build:work_shifts
 
-# @build:conflicts
+    conflict_repository = PostgresConflictRepository(database)
+    notifications = PostgresNotificationRepository(database)
+    conflicts = ConflictService(
+        schedules, shifts, conflict_repository, notifications, GeminiConflictAnalyzer(gemini), ai_log
+    )
+    change_notifier.subscribe(conflicts.run_check)
+    week_view = WeekViewService(schedules, shifts, conflict_repository, notifications)
 
     return Services(
 # @kwargs:auth
@@ -57,5 +68,6 @@ def build_services(settings: Settings) -> Services:
 
 # @kwargs:work_shifts
 
-# @kwargs:conflicts
+        conflicts=conflicts,
+        week_view=week_view,
     )
