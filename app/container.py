@@ -22,7 +22,7 @@ from app.application.schedule_import_service import ScheduleImportService
 from app.infrastructure.ai.gemini_schedule_recognizer import GeminiScheduleRecognizer
 from app.infrastructure.persistence.pdf_document_repository import PostgresPdfDocumentRepository
 
-# @imports:work_shifts
+from app.application.work_shift_service import WorkShiftService
 
 from app.application.conflict_service import ConflictService
 from app.application.week_view_service import WeekViewService
@@ -38,7 +38,7 @@ class Services:
 
     schedule_import: ScheduleImportService | None = None
 
-# @fields:work_shifts
+    work_shifts: WorkShiftService | None = None
 
     conflicts: ConflictService | None = None
     week_view: WeekViewService | None = None
@@ -57,7 +57,7 @@ def build_services(settings: Settings) -> Services:
         PostgresPdfDocumentRepository(database), schedules, GeminiScheduleRecognizer(gemini), ai_log, change_notifier
     )
 
-# @build:work_shifts
+    work_shifts = WorkShiftService(shifts, change_notifier)
 
     conflict_repository = PostgresConflictRepository(database)
     notifications = PostgresNotificationRepository(database)
@@ -72,7 +72,7 @@ def build_services(settings: Settings) -> Services:
 
         schedule_import=schedule_import,
 
-# @kwargs:work_shifts
+        work_shifts=work_shifts,
 
         conflicts=conflicts,
         week_view=week_view,

@@ -29,7 +29,9 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
 
     app.register_blueprint(schedule_bp)
 
-# @web:work_shifts
+    from app.web.work_shifts.routes import work_shifts_bp
+
+    app.register_blueprint(work_shifts_bp)
 
     from app.web.week.routes import week_bp
 

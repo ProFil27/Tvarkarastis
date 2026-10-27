@@ -15,7 +15,7 @@
 
                 <li><a href="{{ url_for('schedule.upload') }}">Tvarkaraščio įkėlimas</a></li>
 
-{# @nav:work_shifts #}
+                <li><a href="{{ url_for('work_shifts.list_shifts') }}">Darbo valandos</a></li>
 
                 <li>
                     <form method="post" action="{{ url_for('auth.logout') }}" style="display:inline">
