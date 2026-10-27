@@ -32,18 +32,25 @@ docs/
   sprint1_assignments.md - kas konkrečiai turi padaryti kiekvienas komandos narys
 ```
 
-## Paleidimas lokaliai
+## Paleidimas (Docker + Task) - rekomenduojama
 
-1. Python 3.11+, PostgreSQL 14+ turi būti įdiegti.
-2. `python -m venv .venv && .venv\Scripts\activate` (Windows) tada `pip install -r requirements.txt`.
-3. Sukurti DB: `createdb tvarkarastis` (arba per pgAdmin), tada:
-   ```
-   psql -d tvarkarastis -f db/schema.sql
-   psql -d tvarkarastis -f db/seed.sql
-   ```
-4. `copy config.example.ini config.ini` ir užpildyti DB prisijungimo duomenis + Gemini API raktą.
-   **config.ini niekada necommitinamas** (yra .gitignore, žr. N-22).
-5. `python run.py` - atidaryti http://127.0.0.1:5000
+Reikia: Docker Desktop ir [Task](https://taskfile.dev) (`winget install Task.Task`).
+
+```
+copy .env.example .env      # tada .env uzpildyti (GEMINI_API_KEY, slaptazodzius)
+task                        # sukuria DB (schema), paleidzia app -> http://127.0.0.1:5000
+```
+
+Kitos komandos: `task down` (sustabdyti), `task reset` (istrinti DB), `task logs`,
+`task seed` (demo duomenys), `task psql`. `.env` niekada nekomitinamas (N-22).
+Gemini API raktas imamas is `.env` (`GEMINI_API_KEY`).
+
+## Paleidimas be Docker
+
+1. Python 3.11+, PostgreSQL 14+; `python -m venv .venv`, `pip install -r requirements.txt`.
+2. `createdb tvarkarastis`, tada `psql -d tvarkarastis -f db/schema.sql` (+ `db/seed.sql`).
+3. `.env` (su `DB_HOST=localhost`) arba `config.ini` is `config.example.ini`.
+4. `python run.py` - http://127.0.0.1:5000
 
 ## Darbo eiga komandai
 
