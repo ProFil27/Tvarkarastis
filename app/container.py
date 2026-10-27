@@ -18,7 +18,9 @@ from app.application.auth_service import AuthService
 from app.infrastructure.persistence.user_repository import PostgresUserRepository
 from app.infrastructure.security import WerkzeugPasswordHasher
 
-# @imports:schedule_import
+from app.application.schedule_import_service import ScheduleImportService
+from app.infrastructure.ai.gemini_schedule_recognizer import GeminiScheduleRecognizer
+from app.infrastructure.persistence.pdf_document_repository import PostgresPdfDocumentRepository
 
 from app.application.work_shift_service import WorkShiftService
 
@@ -30,7 +32,7 @@ class Services:
 
     auth: AuthService | None = None
 
-# @fields:schedule_import
+    schedule_import: ScheduleImportService | None = None
 
     work_shifts: WorkShiftService | None = None
 
@@ -46,7 +48,9 @@ def build_services(settings: Settings) -> Services:
 
     auth = AuthService(PostgresUserRepository(database), WerkzeugPasswordHasher())
 
-# @build:schedule_import
+    schedule_import = ScheduleImportService(
+        PostgresPdfDocumentRepository(database), schedules, GeminiScheduleRecognizer(gemini), ai_log, change_notifier
+    )
 
     work_shifts = WorkShiftService(shifts, change_notifier)
 
@@ -55,7 +59,7 @@ def build_services(settings: Settings) -> Services:
     return Services(
         auth=auth,
 
-# @kwargs:schedule_import
+        schedule_import=schedule_import,
 
         work_shifts=work_shifts,
 
