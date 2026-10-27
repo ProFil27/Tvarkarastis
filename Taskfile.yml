@@ -1,0 +1,51 @@
+# https://taskfile.dev  (Windows: winget install Task.Task)
+# Pagrindinis irasymo taskas: `task` (arba `task up`) - paleidzia viska automatiskai.
+version: "3"
+
+tasks:
+  default:
+    desc: Paleisti visa sistema (DB + aplikacija)
+    cmds:
+      - task: up
+
+  env:
+    desc: Sukurti .env is .env.example, jei jo dar nera
+    status:
+      - test -f .env
+    cmds:
+      - cp .env.example .env
+      - echo "Sukurtas .env - uzpildykite GEMINI_API_KEY ir slaptazodzius, tada paleiskite 'task up' dar karta."
+      - exit 1
+
+  up:
+    desc: Sukurti ir paleisti DB bei aplikacija (http://127.0.0.1:5000)
+    deps: [env]
+    cmds:
+      - docker compose up --build -d
+      - echo "Sistema veikia - http://127.0.0.1:5000"
+
+  down:
+    desc: Sustabdyti sistema (duomenys islieka)
+    cmds:
+      - docker compose down
+
+  reset:
+    desc: Sustabdyti ir istrinti DB duomenis (schema bus sukurta is naujo)
+    cmds:
+      - docker compose down -v
+
+  logs:
+    desc: Rodyti aplikacijos zurnala
+    cmds:
+      - docker compose logs -f app
+
+  seed:
+    desc: Ikelti demonstracinius duomenis (db/seed.sql, N-16)
+    cmds:
+      - docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < db/seed.sql
+
+  psql:
+    desc: Atidaryti psql konsole
+    interactive: true
+    cmds:
+      - docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'

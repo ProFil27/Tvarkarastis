@@ -1,27 +1,52 @@
 import configparser
 import os
 
-_CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.ini")
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_CONFIG_PATH = os.path.join(_ROOT, "config.ini")
+
+
+def _load_dotenv(path: str) -> None:
+    """Paprastas .env skaitytuvas (vietinis paleidimas be Docker); jau nustatytu aplinkos kintamuju neperraso."""
+    if not os.path.exists(path):
+        return
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            os.environ.setdefault(key.strip(), value.strip())
 
 
 class Config:
+    """Konfiguracija: aplinkos kintamieji (.env / Docker) turi pirmenybe prieš config.ini (N-22)."""
+
     def __init__(self, path: str = _CONFIG_PATH):
-        if not os.path.exists(path):
-            raise FileNotFoundError(
-                f"Nerastas konfiguracijos failas: {path}. "
-                "Nukopijuokite config.example.ini -> config.ini ir uzpildykite reiksmes."
-            )
+        _load_dotenv(os.path.join(_ROOT, ".env"))
+
         parser = configparser.ConfigParser()
         parser.read(path)
 
-        self.db_host = parser.get("database", "host")
-        self.db_port = parser.getint("database", "port")
-        self.db_name = parser.get("database", "name")
-        self.db_user = parser.get("database", "user")
-        self.db_password = parser.get("database", "password")
+        def get(env: str, section: str, option: str, fallback: str | None = None) -> str:
+            value = os.environ.get(env)
+            if value is not None and value != "":
+                return value
+            if parser.has_option(section, option):
+                return parser.get(section, option)
+            if fallback is not None:
+                return fallback
+            raise RuntimeError(
+                f"Truksta konfiguracijos: nustatykite {env} (.env) arba [{section}] {option} (config.ini)."
+            )
 
-        self.gemini_api_key = parser.get("gemini", "api_key", fallback="")
-        self.gemini_model = parser.get("gemini", "model", fallback="gemini-1.5-flash")
+        self.db_host = get("DB_HOST", "database", "host", "localhost")
+        self.db_port = int(get("DB_PORT", "database", "port", "5432"))
+        self.db_name = get("DB_NAME", "database", "name")
+        self.db_user = get("DB_USER", "database", "user")
+        self.db_password = get("DB_PASSWORD", "database", "password")
 
-        self.secret_key = parser.get("app", "secret_key")
-        self.debug = parser.getboolean("app", "debug", fallback=False)
+        self.gemini_api_key = get("GEMINI_API_KEY", "gemini", "api_key", "")
+        self.gemini_model = get("GEMINI_MODEL", "gemini", "model", "gemini-2.5-flash")
+
+        self.secret_key = get("SECRET_KEY", "app", "secret_key")
+        self.debug = get("FLASK_DEBUG", "app", "debug", "false").lower() == "true"
