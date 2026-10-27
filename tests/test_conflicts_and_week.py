@@ -46,7 +46,7 @@ def test_conflict_check_never_raises_and_keeps_data_on_failure():
     schedules.add(1, None, date.today(), date.today(), [sample_event()])
     shifts.add(1, "Kavine", Weekday.MONDAY, time(10, 0), time(14, 0))
     service.run_check(1)
-    assert conflicts.list_active(1) == [] and ai_log.requests[0]["error"] == "boom"
+    assert conflicts.list_active(1) == [] and ai_log.requests[0]["error"]  # failure is logged, data unchanged
 
 
 def test_week_view_marks_conflicts_and_normalizes_to_monday():

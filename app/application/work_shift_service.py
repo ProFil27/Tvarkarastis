@@ -4,6 +4,7 @@ from app.application.validation import ChangeListener, ignore_changes, parse_tim
 from app.domain.entities import WorkShift
 from app.domain.weekday import Weekday
 
+
 class WorkShiftService:
     def __init__(self, shifts: WorkShiftRepository, on_change: ChangeListener = ignore_changes):
         self._shifts = shifts
