@@ -14,7 +14,9 @@ from app.infrastructure.database import Database
 from app.infrastructure.persistence.ai_request_log import PostgresAiRequestLog
 from app.infrastructure.persistence.schedule_repository import PostgresScheduleRepository
 from app.infrastructure.persistence.work_shift_repository import PostgresWorkShiftRepository
-# @imports:auth
+from app.application.auth_service import AuthService
+from app.infrastructure.persistence.user_repository import PostgresUserRepository
+from app.infrastructure.security import WerkzeugPasswordHasher
 
 # @imports:schedule_import
 
@@ -26,7 +28,7 @@ from app.infrastructure.persistence.work_shift_repository import PostgresWorkShi
 class Services:
     """Application services used by the web layer. Fields default to None so tests can wire only what they need."""
 
-# @fields:auth
+    auth: AuthService | None = None
 
 # @fields:schedule_import
 
@@ -42,7 +44,7 @@ def build_services(settings: Settings) -> Services:
     gemini = GeminiClient(settings.gemini_api_key, settings.gemini_model)
     change_notifier = ChangeNotifier()
 
-# @build:auth
+    auth = AuthService(PostgresUserRepository(database), WerkzeugPasswordHasher())
 
 # @build:schedule_import
 
@@ -51,7 +53,7 @@ def build_services(settings: Settings) -> Services:
 # @build:conflicts
 
     return Services(
-# @kwargs:auth
+        auth=auth,
 
 # @kwargs:schedule_import
 

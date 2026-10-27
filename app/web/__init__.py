@@ -21,7 +21,9 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
 
     app.register_blueprint(home_bp)
 
-# @web:auth
+    from app.web.auth.routes import auth_bp
+
+    app.register_blueprint(auth_bp)
 
 # @web:schedule_import
 
