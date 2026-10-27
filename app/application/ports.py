@@ -1,6 +1,6 @@
 """Ports: the interfaces the application layer needs from the outside world.
 
-Infrastructure implements them (Postgres repositories, Gemini agents, password
+Infrastructure implements them (Postgres repositories, AI agents, password
 hashing). Services depend only on these protocols, so storage or the AI provider
 can be replaced without touching business logic (N-18, N-19).
 """
