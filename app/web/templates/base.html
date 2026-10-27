@@ -11,7 +11,7 @@
         <ul class="navbar-links">
             <li><a href="{{ url_for('home.index') }}">Pagrindinis</a></li>
             {% if session.get('user_id') %}
-{# @nav:week #}
+                <li><a href="{{ url_for('week.view') }}">Savaitės vaizdas</a></li>
 
 {# @nav:schedule_import #}
 
