@@ -9,8 +9,18 @@
     <nav class="navbar">
         <span class="navbar-brand">Tvarkarastis</span>
         <ul class="navbar-links">
-            <li><a href="{{ url_for('gvs.index') }}">Pagrindinis</a></li>
-            {# Each component adds its own navigation link here. #}
+            <li><a href="{{ url_for('home.index') }}">Pagrindinis</a></li>
+            {% if session.get('user_id') %}
+{# @nav:week #}
+
+{# @nav:schedule_import #}
+
+{# @nav:work_shifts #}
+
+{# @nav:auth_user #}
+            {% else %}
+{# @nav:auth_guest #}
+            {% endif %}
         </ul>
     </nav>
 

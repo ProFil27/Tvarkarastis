@@ -1,7 +1,7 @@
 import configparser
 import os
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _CONFIG_PATH = os.path.join(_ROOT, "config.ini")
 
 
@@ -18,7 +18,7 @@ def _load_dotenv(path: str) -> None:
             os.environ.setdefault(key.strip(), value.strip())
 
 
-class Config:
+class Settings:
     """Application settings. Environment variables (.env / Docker) take precedence over config.ini (N-22)."""
 
     def __init__(self, path: str = _CONFIG_PATH):
