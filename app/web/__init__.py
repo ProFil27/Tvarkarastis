@@ -33,6 +33,8 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
 
     app.register_blueprint(work_shifts_bp)
 
-# @web:conflicts
+    from app.web.week.routes import week_bp
+
+    app.register_blueprint(week_bp)
 
     return app

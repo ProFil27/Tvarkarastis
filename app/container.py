@@ -24,7 +24,11 @@ from app.infrastructure.persistence.pdf_document_repository import PostgresPdfDo
 
 from app.application.work_shift_service import WorkShiftService
 
-# @imports:conflicts
+from app.application.conflict_service import ConflictService
+from app.application.week_view_service import WeekViewService
+from app.infrastructure.ai.gemini_conflict_analyzer import GeminiConflictAnalyzer
+from app.infrastructure.persistence.conflict_repository import PostgresConflictRepository
+from app.infrastructure.persistence.notification_repository import PostgresNotificationRepository
 
 @dataclass(frozen=True)
 class Services:
@@ -36,7 +40,8 @@ class Services:
 
     work_shifts: WorkShiftService | None = None
 
-# @fields:conflicts
+    conflicts: ConflictService | None = None
+    week_view: WeekViewService | None = None
 
 def build_services(settings: Settings) -> Services:
     database = Database(settings)
@@ -54,7 +59,13 @@ def build_services(settings: Settings) -> Services:
 
     work_shifts = WorkShiftService(shifts, change_notifier)
 
-# @build:conflicts
+    conflict_repository = PostgresConflictRepository(database)
+    notifications = PostgresNotificationRepository(database)
+    conflicts = ConflictService(
+        schedules, shifts, conflict_repository, notifications, GeminiConflictAnalyzer(gemini), ai_log
+    )
+    change_notifier.subscribe(conflicts.run_check)
+    week_view = WeekViewService(schedules, shifts, conflict_repository, notifications)
 
     return Services(
         auth=auth,
@@ -63,5 +74,6 @@ def build_services(settings: Settings) -> Services:
 
         work_shifts=work_shifts,
 
-# @kwargs:conflicts
+        conflicts=conflicts,
+        week_view=week_view,
     )
