@@ -12,7 +12,7 @@ class PostgresCalendarEventRepository:
         with self._db.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, user_id, study_event_id, work_shift_id, google_event_id, synced_at
+                SELECT id, user_id, study_event_id, work_shift_id, shift_series_id, google_event_id, synced_at
                 FROM calendar_events WHERE user_id = %s ORDER BY id
                 """,
                 (user_id,),
@@ -26,15 +26,17 @@ class PostgresCalendarEventRepository:
         work_shift_id: int | None,
         google_event_id: str,
         synced_at: datetime,
+        shift_series_id: int | None = None,
     ) -> CalendarEventLink:
         with self._db.cursor(commit=True) as cur:
             cur.execute(
                 """
-                INSERT INTO calendar_events (user_id, study_event_id, work_shift_id, google_event_id, synced_at)
-                VALUES (%s, %s, %s, %s, %s)
-                RETURNING id, user_id, study_event_id, work_shift_id, google_event_id, synced_at
+                INSERT INTO calendar_events
+                    (user_id, study_event_id, work_shift_id, shift_series_id, google_event_id, synced_at)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id, user_id, study_event_id, work_shift_id, shift_series_id, google_event_id, synced_at
                 """,
-                (user_id, study_event_id, work_shift_id, google_event_id, synced_at),
+                (user_id, study_event_id, work_shift_id, shift_series_id, google_event_id, synced_at),
             )
             return CalendarEventLink(**cur.fetchone())
 

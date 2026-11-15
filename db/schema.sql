@@ -90,6 +90,22 @@ CREATE TABLE workplaces (
     name VARCHAR(255) NOT NULL
 );
 
+-- ShiftSeries: a work shift that repeats every week. Every occurrence is a row of work_shifts (series_id); a row that was
+-- changed on its own is an exception and is left alone when the series is edited (DVK)
+CREATE TABLE shift_series (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    workplace_id INTEGER NOT NULL REFERENCES workplaces(id) ON DELETE CASCADE,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    first_date DATE NOT NULL,
+    last_date DATE NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT now(),
+    CONSTRAINT shift_series_time_check CHECK (end_time > start_time),
+    CONSTRAINT shift_series_date_check CHECK (last_date >= first_date)
+);
+CREATE INDEX idx_shift_series_user_id ON shift_series(user_id);
+
 -- WorkShift: working-time interval on a concrete date (DVK)
 CREATE TABLE work_shifts (
     id SERIAL PRIMARY KEY,
@@ -98,6 +114,8 @@ CREATE TABLE work_shifts (
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     is_changeable BOOLEAN NOT NULL DEFAULT FALSE,
+    series_id INTEGER REFERENCES shift_series(id) ON DELETE CASCADE,
+    is_exception BOOLEAN NOT NULL DEFAULT FALSE,
     updated_at TIMESTAMP NOT NULL DEFAULT now(),
     CONSTRAINT work_shift_time_check CHECK (end_time > start_time)
 );
@@ -163,13 +181,15 @@ CREATE TABLE calendar_events (
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     study_event_id INTEGER REFERENCES study_events(id) ON DELETE SET NULL,
     work_shift_id INTEGER REFERENCES work_shifts(id) ON DELETE SET NULL,
+    shift_series_id INTEGER REFERENCES shift_series(id) ON DELETE SET NULL,
     google_event_id VARCHAR(1024) NOT NULL,
     synced_at TIMESTAMP NOT NULL DEFAULT now(),
-    CONSTRAINT calendar_event_one_source CHECK (study_event_id IS NULL OR work_shift_id IS NULL),
+    CONSTRAINT calendar_event_one_source CHECK (num_nonnulls(study_event_id, work_shift_id, shift_series_id) <= 1),
     CONSTRAINT calendar_event_unique_google_id UNIQUE (user_id, google_event_id)
 );
 CREATE UNIQUE INDEX idx_calendar_events_study_event ON calendar_events(study_event_id) WHERE study_event_id IS NOT NULL;
 CREATE UNIQUE INDEX idx_calendar_events_work_shift ON calendar_events(work_shift_id) WHERE work_shift_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_calendar_events_series ON calendar_events(shift_series_id) WHERE shift_series_id IS NOT NULL;
 CREATE INDEX idx_calendar_events_user_id ON calendar_events(user_id);
 
 -- SyncOperation: one export / update run and its result (KSK)

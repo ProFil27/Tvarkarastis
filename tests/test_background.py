@@ -55,7 +55,8 @@ def test_a_change_returns_immediately_while_google_is_still_being_updated():
     world.service.export(1)
     background = CalendarSyncService(
         world.provider, world.accounts, world.cipher, world.links, world.operations, world.schedules, world.shifts,
-        world.notifications, now=datetime.now, utc_now=lambda: datetime(2026, 11, 15, 12, 0), background=True,
+        world.series, world.notifications, now=datetime.now, utc_now=lambda: datetime(2026, 11, 15, 12, 0),
+        background=True,
     )
     lecture = world.schedules.list_study_events(1)[0]
     world.schedules.update_event(1, lecture.id, lecture)  # a changed record

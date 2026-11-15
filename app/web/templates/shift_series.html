@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_time_field.html" import time_field %}
+{% block title %}Pamainų serija{% endblock %}
+{% block content %}
+    <div class="head">
+        <div>
+            <h1>Pamainų serija</h1>
+            <div class="sub">Pakeitimai taikomi visoms serijos dienoms. Atskirai pakeistos dienos („Išimtys“) lieka nepakeistos</div>
+        </div>
+    </div>
+
+    <form method="post" action="{{ url_for('work_shifts.save_series', series_id=series.id) }}" class="card" novalidate>
+        <h2 style="margin-bottom:16px">Keisti seriją nuo {{ series.first_date.isoformat() }}</h2>
+        <div class="form series-form">
+            <div>
+                <label for="workplace_name">Darbovietė</label>
+                <input class="in {{ 'invalid' if errors.get('workplace_name') }}" type="text" id="workplace_name"
+                       name="workplace_name" value="{{ form.get('workplace_name', '') }}">
+                {% if errors.get('workplace_name') %}<div class="field-error">{{ errors['workplace_name'] }}</div>{% endif %}
+            </div>
+            <div>
+                <label for="start_time">Pradžia</label>
+                {{ time_field('start_time', form.get('start_time', ''), 'in', errors.get('start_time'), 'start_time') }}
+                {% if errors.get('start_time') %}<div class="field-error">{{ errors['start_time'] }}</div>{% endif %}
+            </div>
+            <div>
+                <label for="end_time">Pabaiga</label>
+                {{ time_field('end_time', form.get('end_time', ''), 'in', errors.get('end_time'), 'end_time') }}
+                {% if errors.get('end_time') %}<div class="field-error">{{ errors['end_time'] }}</div>{% endif %}
+            </div>
+            <div>
+                <label for="repeat_until">Kartoti kas savaitę iki</label>
+                <input class="in {{ 'invalid' if errors.get('repeat_until') }}" type="date" id="repeat_until"
+                       name="repeat_until" value="{{ form.get('repeat_until', '') }}">
+                {% if errors.get('repeat_until') %}<div class="field-error">{{ errors['repeat_until'] }}</div>{% endif %}
+                <div class="hint">Pirma serijos diena ({{ series.first_date.isoformat() }}) nekeičiama.</div>
+            </div>
+        </div>
+        <div class="lecture-actions">
+            <a class="btn d" href="{{ url_for('work_shifts.confirm_remove_series', series_id=series.id) }}">Šalinti visą seriją</a>
+            <div style="display:flex;gap:12px">
+                <a class="btn s" href="{{ url_for('work_shifts.list_shifts') }}">Atšaukti</a>
+                <button type="submit" class="btn p">Išsaugoti seriją</button>
+            </div>
+        </div>
+    </form>
+{% endblock %}

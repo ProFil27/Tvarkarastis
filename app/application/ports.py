@@ -23,6 +23,7 @@ from app.domain.entities import (
     PdfStatus,
     ReminderSetting,
     ReminderType,
+    ShiftSeries,
     StudyEvent,
     SyncOperation,
     SyncOperationType,
@@ -138,6 +139,38 @@ class ReminderSettingRepository(Protocol):
     def set_enabled(self, user_id: int, enabled: bool) -> None: ...
 
     def set_closed_period(self, user_id: int, period_start: date, reminder_type: ReminderType) -> None: ...
+
+
+class ShiftSeriesRepository(Protocol):
+    """Work shifts that repeat every week (one Google event, edited and removed as a whole)."""
+
+    def create(
+        self, user_id: int, workplace_name: str, start_time: time, end_time: time, dates: list[date]
+    ) -> list[WorkShift]:
+        """Create the series and its shifts (one per date) in one transaction; returns the new shifts."""
+        ...
+
+    def get(self, user_id: int, series_id: int) -> ShiftSeries | None: ...
+
+    def list_for_user(self, user_id: int) -> list[ShiftSeries]: ...
+
+    def update(
+        self,
+        user_id: int,
+        series_id: int,
+        workplace_name: str,
+        start_time: time,
+        end_time: time,
+        last_date: date,
+        new_dates: list[date],
+    ) -> ShiftSeries | None:
+        """Change the series: shifts that follow it get the new workplace and times (exceptions are left alone),
+        shifts after `last_date` are removed and shifts for `new_dates` are added. None if it is not the user's."""
+        ...
+
+    def remove(self, user_id: int, series_id: int) -> bool:
+        """Remove the series and all its shifts."""
+        ...
 
 
 class ConflictRepository(Protocol):
@@ -267,6 +300,7 @@ class CalendarEventRepository(Protocol):
         work_shift_id: int | None,
         google_event_id: str,
         synced_at: datetime,
+        shift_series_id: int | None = None,
     ) -> CalendarEventLink: ...
 
     def touch_link(self, link_id: int, synced_at: datetime) -> None: ...

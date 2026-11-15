@@ -21,10 +21,12 @@ NOW = datetime(2026, 11, 14, 10, 12)
 def make_service(provider=None, cipher=None):
     provider = provider or fakes.FakeCalendarProvider()
     accounts = fakes.FakeCalendarAccountRepository()
+    shifts = fakes.FakeWorkShiftRepository()
     service = CalendarSyncService(
         provider, accounts, cipher or fakes.FakeTokenCipher(), fakes.FakeCalendarEventRepository(),
-        fakes.FakeSyncOperationRepository(), fakes.FakeScheduleRepository(), fakes.FakeWorkShiftRepository(),
-        fakes.FakeNotificationRepository(), now=lambda: NOW, utc_now=lambda: NOW,
+        fakes.FakeSyncOperationRepository(), fakes.FakeScheduleRepository(), shifts,
+        fakes.FakeShiftSeriesRepository(shifts), fakes.FakeNotificationRepository(), now=lambda: NOW,
+        utc_now=lambda: NOW,
     )
     return service, provider, accounts
 

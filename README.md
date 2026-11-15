@@ -58,6 +58,9 @@ Internetu pasiekiamas pasirinkto tiekėjo API (Google Gemini arba Anthropic Clau
 - **Priminimai** įkelti atnaujintą tvarkaraštį pirmąsias 7 semestro / mėnesio dienas (`SEMESTER_START_DATES`).
 - **Naujo tvarkaraščio įkėlimas vietoje seno** (žymeklis „Pakeisti esamą tvarkaraštį“ + patvirtinimas).
 - **Google Calendar**: prijungimas, eksportas, automatinis atnaujinimas po pakeitimų, sinchronizavimo būsena ir klaidos.
+- **Pamainų serija**: „Kartoti kas savaitę iki“ sukuria vieną serijos įrašą (kiekviena diena lieka atskira pamaina). Seriją galima
+  keisti ar šalinti visą arba keisti tik vieną dieną (ji tampa „Išimtimi“); į Google Calendar eksportuojamas vienas
+  pasikartojantis įvykis (`RRULE` + `EXDATE` praleistoms savaitėms). Po pakeitimų Google atnaujinamas fone.
 - Darbo pamaina turi konkrečią **datą** (YYYY-MM-DD), todėl eksportuojama kaip pavienis įvykis.
 - Laiko laukai - tekstiniai (`930` -> `09:30`, rodyklės keičia laiką), be naršyklės laikrodžio.
 

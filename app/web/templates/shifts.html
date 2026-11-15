@@ -59,13 +59,20 @@
         {% if shifts %}
             <div class="tw">
                 <table>
-                    <tr><th>Darbovietė</th><th>Data</th><th>Pradžia</th><th>Pabaiga</th><th></th></tr>
+                    <tr><th>Darbovietė</th><th>Data</th><th>Pradžia</th><th>Pabaiga</th><th>Serija</th><th></th></tr>
                     {% for shift in shifts %}
                         <tr class="{{ 'row-editing' if shift.id == editing_id }}">
                             <td><b>{{ shift.workplace_name }}</b></td>
                             <td>{{ shift.work_date.isoformat() }} <span class="hint">{{ shift.weekday.label }}</span></td>
                             <td>{{ shift.start_time.strftime('%H:%M') }}</td>
                             <td>{{ shift.end_time.strftime('%H:%M') }}</td>
+                            <td>
+                                {% if shift.series_id %}
+                                    <a class="chip {{ 'n' if shift.is_exception else 'work' }}"
+                                       href="{{ url_for('work_shifts.edit_series', series_id=shift.series_id) }}"
+                                       title="Keisti visą pamainų seriją">{{ 'Išimtis' if shift.is_exception else 'Kas savaitę' }} ›</a>
+                                {% endif %}
+                            </td>
                             <td style="text-align:right;white-space:nowrap">
                                 <a class="btn s btn-sm" href="{{ url_for('work_shifts.edit_shift', shift_id=shift.id) }}">Keisti</a>
                                 <form method="post" style="display:inline" action="{{ url_for('work_shifts.delete_shift', shift_id=shift.id) }}">

@@ -118,10 +118,29 @@ class WorkShift:
     start_time: time
     end_time: time
     updated_at: datetime | None = None  # last manual change (used by the calendar sync)
+    series_id: int | None = None  # the weekly series this shift belongs to
+    is_exception: bool = False  # changed on its own: no longer follows its series
 
     @property
     def weekday(self) -> Weekday:
         return Weekday.of_date(self.work_date)
+
+    @property
+    def follows_series(self) -> bool:
+        return self.series_id is not None and not self.is_exception
+
+
+@dataclass(frozen=True)
+class ShiftSeries:
+    """A work shift that repeats every week from `first_date` to `last_date` (see db/migrations/011)."""
+
+    id: int
+    workplace_name: str
+    start_time: time
+    end_time: time
+    first_date: date
+    last_date: date
+    updated_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -207,10 +226,11 @@ class CalendarEventLink:
     work_shift_id: int | None
     google_event_id: str
     synced_at: datetime  # local time
+    shift_series_id: int | None = None
 
     @property
     def is_orphan(self) -> bool:
-        return self.study_event_id is None and self.work_shift_id is None
+        return self.study_event_id is None and self.work_shift_id is None and self.shift_series_id is None
 
 
 @dataclass(frozen=True)

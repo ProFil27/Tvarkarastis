@@ -17,6 +17,7 @@ from app.domain.entities import (
     PdfStatus,
     ReminderSetting,
     StudyEvent,
+    ShiftSeries,
     StudyEventType,
     SyncOperation,
     SyncOperationType,
@@ -140,32 +141,95 @@ class FakeReminderSettingRepository:
 class FakeWorkShiftRepository:
     def __init__(self):
         self.shifts: dict[int, list[WorkShift]] = {}
+        self.series: dict[int, tuple[int, ShiftSeries]] = {}  # id -> (user id, series)
         self._next_id = 1
+        self._next_series_id = 1
 
-    def add(self, user_id, workplace_name, work_date, start_time, end_time):
-        shift = WorkShift(self._next_id, workplace_name, work_date, start_time, end_time, datetime.now())
+    def add(self, user_id, workplace_name, work_date, start_time, end_time, series_id=None):
+        shift = WorkShift(self._next_id, workplace_name, work_date, start_time, end_time, datetime.now(), series_id)
         self._next_id += 1
         self.shifts.setdefault(user_id, []).append(shift)
         return shift
 
     def list_for_user(self, user_id):
-        return list(self.shifts.get(user_id, []))
+        return sorted(self.shifts.get(user_id, []), key=lambda s: (s.work_date, s.start_time))
 
     def get(self, user_id, shift_id):
         return next((s for s in self.shifts.get(user_id, []) if s.id == shift_id), None)
 
     def update(self, user_id, shift_id, workplace_name, work_date, start_time, end_time):
-        if self.get(user_id, shift_id) is None:
+        old = self.get(user_id, shift_id)
+        if old is None:
             return None
-        new = WorkShift(shift_id, workplace_name, work_date, start_time, end_time, datetime.now())
+        new = WorkShift(shift_id, workplace_name, work_date, start_time, end_time, datetime.now(), old.series_id,
+                        old.series_id is not None)  # a changed series member becomes an exception
         self.shifts[user_id] = [new if s.id == shift_id else s for s in self.shifts[user_id]]
+        self._touch_series(old.series_id)
         return new
 
     def remove(self, user_id, shift_id):
-        before = self.shifts.get(user_id, [])
-        after = [s for s in before if s.id != shift_id]
-        self.shifts[user_id] = after
-        return len(after) != len(before)
+        old = self.get(user_id, shift_id)
+        if old is None:
+            return False
+        self.shifts[user_id] = [s for s in self.shifts[user_id] if s.id != shift_id]
+        if old.series_id is not None:
+            if any(s.series_id == old.series_id for s in self.shifts[user_id]):
+                self._touch_series(old.series_id)
+            else:
+                self.series.pop(old.series_id, None)  # the last shift of a series takes the series with it
+        return True
+
+    def _touch_series(self, series_id):
+        if series_id in self.series:
+            user_id, series = self.series[series_id]
+            self.series[series_id] = (user_id, replace(series, updated_at=datetime.now()))
+
+
+class FakeShiftSeriesRepository:
+    """Weekly series; shares its data with the FakeWorkShiftRepository it is created from."""
+
+    def __init__(self, shift_repository):
+        self.repo = shift_repository
+
+    def create(self, user_id, workplace_name, start_time, end_time, dates):
+        series_id = self.repo._next_series_id
+        self.repo._next_series_id += 1
+        self.repo.series[series_id] = (user_id, ShiftSeries(
+            series_id, workplace_name, start_time, end_time, min(dates), max(dates), datetime.now()))
+        return [self.repo.add(user_id, workplace_name, day, start_time, end_time, series_id) for day in dates]
+
+    def get(self, user_id, series_id):
+        owner, series = self.repo.series.get(series_id, (None, None))
+        return series if owner == user_id else None
+
+    def list_for_user(self, user_id):
+        return sorted((s for owner, s in self.repo.series.values() if owner == user_id), key=lambda s: s.first_date)
+
+    def update(self, user_id, series_id, workplace_name, start_time, end_time, last_date, new_dates):
+        if self.get(user_id, series_id) is None:
+            return None
+        series = replace(self.repo.series[series_id][1], workplace_name=workplace_name, start_time=start_time,
+                         end_time=end_time, last_date=last_date, updated_at=datetime.now())
+        self.repo.series[series_id] = (user_id, series)
+        kept = []
+        for shift in self.repo.shifts.get(user_id, []):
+            if shift.series_id == series_id and shift.work_date > last_date:
+                continue  # beyond the new last day
+            if shift.series_id == series_id and not shift.is_exception:
+                shift = replace(shift, workplace_name=workplace_name, start_time=start_time, end_time=end_time,
+                                updated_at=datetime.now())
+            kept.append(shift)
+        self.repo.shifts[user_id] = kept
+        for day in new_dates:
+            self.repo.add(user_id, workplace_name, day, start_time, end_time, series_id)
+        return series
+
+    def remove(self, user_id, series_id):
+        if self.get(user_id, series_id) is None:
+            return False
+        del self.repo.series[series_id]
+        self.repo.shifts[user_id] = [s for s in self.repo.shifts.get(user_id, []) if s.series_id != series_id]
+        return True
 
 
 class FakeConflictRepository:
@@ -385,9 +449,10 @@ class FakeCalendarEventRepository:
     def list_links(self, user_id):
         return [link for link in self.links.values() if link.user_id == user_id]
 
-    def add_link(self, user_id, study_event_id, work_shift_id, google_event_id, synced_at):
+    def add_link(self, user_id, study_event_id, work_shift_id, google_event_id, synced_at, shift_series_id=None):
         self._next_id += 1
-        link = CalendarEventLink(self._next_id, user_id, study_event_id, work_shift_id, google_event_id, synced_at)
+        link = CalendarEventLink(self._next_id, user_id, study_event_id, work_shift_id, google_event_id, synced_at,
+                                 shift_series_id)
         self.links[link.id] = link
         return link
 
@@ -404,6 +469,11 @@ class FakeCalendarEventRepository:
         for link in list(self.links.values()):
             if link.study_event_id == event_id:
                 self.links[link.id] = replace(link, study_event_id=None)
+
+    def unlink_series(self, series_id):
+        for link in list(self.links.values()):
+            if link.shift_series_id == series_id:
+                self.links[link.id] = replace(link, shift_series_id=None)
 
     def unlink_work_shift(self, shift_id):
         for link in list(self.links.values()):

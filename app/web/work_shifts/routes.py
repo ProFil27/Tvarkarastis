@@ -80,6 +80,69 @@ def save_shift(shift_id):
     return redirect(url_for("work_shifts.list_shifts"))
 
 
+def _series_form(series) -> dict:
+    return {
+        "workplace_name": series.workplace_name,
+        "start_time": series.start_time.strftime("%H:%M"),
+        "end_time": series.end_time.strftime("%H:%M"),
+        "repeat_until": series.last_date.isoformat(),
+    }
+
+
+def _render_series(series, errors: dict, form: dict):
+    return render_template("shift_series.html", series=series, errors=errors, form=form)
+
+
+@work_shifts_bp.route("/series/<int:series_id>/edit", methods=["GET"])
+@login_required
+def edit_series(series_id):
+    series = services().work_shifts.get_series(current_user_id(), series_id)
+    if series is None:
+        flash("Pamainų serija nerasta.", "error")
+        return redirect(url_for("work_shifts.list_shifts"))
+    return _render_series(series, {}, _series_form(series))
+
+
+@work_shifts_bp.route("/series/<int:series_id>/edit", methods=["POST"])
+@login_required
+def save_series(series_id):
+    form = _form()
+    series = services().work_shifts.get_series(current_user_id(), series_id)
+    if series is None:
+        flash("Pamainų serija nerasta.", "error")
+        return redirect(url_for("work_shifts.list_shifts"))
+    try:
+        services().work_shifts.update_series(
+            current_user_id(), series_id, form["workplace_name"], form["start_time"], form["end_time"],
+            form["repeat_until"],
+        )
+    except ValidationFailed as exc:
+        return _render_series(series, messages.translate(exc.errors), form)
+    flash("Pamainų serija pakeista.", "success")
+    return redirect(url_for("work_shifts.list_shifts"))
+
+
+@work_shifts_bp.route("/series/<int:series_id>/remove", methods=["GET"])
+@login_required
+def confirm_remove_series(series_id):
+    """Removing a whole series is irreversible, so it is confirmed on a separate page."""
+    series = services().work_shifts.get_series(current_user_id(), series_id)
+    if series is None:
+        flash("Pamainų serija nerasta.", "error")
+        return redirect(url_for("work_shifts.list_shifts"))
+    return render_template("shift_series_remove.html", series=series)
+
+
+@work_shifts_bp.route("/series/<int:series_id>/remove", methods=["POST"])
+@login_required
+def remove_series(series_id):
+    if services().work_shifts.remove_series(current_user_id(), series_id):
+        flash("Pamainų serija pašalinta.", "success")
+    else:
+        flash("Pamainų serija nerasta.", "error")
+    return redirect(url_for("work_shifts.list_shifts"))
+
+
 @work_shifts_bp.route("/<int:shift_id>/remove", methods=["POST"])
 @login_required
 def delete_shift(shift_id):

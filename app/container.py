@@ -31,6 +31,7 @@ from app.infrastructure.persistence.notification_repository import PostgresNotif
 from app.infrastructure.persistence.pdf_document_repository import PostgresPdfDocumentRepository
 from app.infrastructure.persistence.reminder_repository import PostgresReminderSettingRepository
 from app.infrastructure.persistence.schedule_repository import PostgresScheduleRepository
+from app.infrastructure.persistence.shift_series_repository import PostgresShiftSeriesRepository
 from app.infrastructure.persistence.sync_operation_repository import PostgresSyncOperationRepository
 from app.infrastructure.persistence.user_repository import PostgresUserRepository
 from app.infrastructure.persistence.work_shift_repository import PostgresWorkShiftRepository
@@ -69,7 +70,8 @@ def build_services(settings: Settings) -> Services:
     )
 
     study_events = StudyEventService(schedules, change_notifier)
-    work_shifts = WorkShiftService(shifts, change_notifier)
+    shift_series = PostgresShiftSeriesRepository(database)
+    work_shifts = WorkShiftService(shifts, change_notifier, shift_series)
 
     conflict_repository = PostgresConflictRepository(database)
     notifications = PostgresNotificationRepository(database)
@@ -89,6 +91,7 @@ def build_services(settings: Settings) -> Services:
         PostgresSyncOperationRepository(database),
         schedules,
         shifts,
+        shift_series,
         notifications,
         background=True,
     )

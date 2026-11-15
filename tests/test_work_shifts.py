@@ -120,21 +120,32 @@ def test_user_cannot_edit_another_users_shift_over_http():
     assert "Kavine" in owner.get("/work-shifts/").get_data(as_text=True)
 
 
+def weekly_service(changed=None):
+    repo = fakes.FakeWorkShiftRepository()
+    listener = changed.append if changed is not None else (lambda user_id: None)
+    return WorkShiftService(repo, on_change=listener, series=fakes.FakeShiftSeriesRepository(repo))
+
+
 def test_weekly_repeat_creates_the_same_weekday_every_week_up_to_the_end_date_inclusive():
     changed = []
-    service = WorkShiftService(fakes.FakeWorkShiftRepository(), on_change=changed.append)
+    service = weekly_service(changed)
 
     shifts = service.add_weekly_shifts(1, "Kavine", "2026-10-28", "10:00", "14:00", "2026-11-18")  # Wednesdays
 
     assert [s.work_date.isoformat() for s in shifts] == ["2026-10-28", "2026-11-04", "2026-11-11", "2026-11-18"]
     assert {s.weekday for s in shifts} == {Weekday.WEDNESDAY} and len(service.list_shifts(1)) == 4
+    assert len({s.series_id for s in shifts}) == 1 and shifts[0].series_id is not None  # one series
     assert changed == [1]  # the conflict search / calendar update run once, not once per shift
 
 
 def test_weekly_repeat_stops_before_an_end_date_that_is_not_the_same_weekday():
-    service = WorkShiftService(fakes.FakeWorkShiftRepository())
-    shifts = service.add_weekly_shifts(1, "Kavine", "2026-10-28", "10:00", "14:00", "2026-11-17")
+    shifts = weekly_service().add_weekly_shifts(1, "Kavine", "2026-10-28", "10:00", "14:00", "2026-11-17")
     assert [s.work_date.isoformat() for s in shifts] == ["2026-10-28", "2026-11-04", "2026-11-11"]
+
+
+def test_a_repeat_that_covers_only_one_day_is_an_ordinary_shift():
+    [shift] = weekly_service().add_weekly_shifts(1, "Kavine", "2026-10-28", "10:00", "14:00", "2026-10-30")
+    assert shift.series_id is None
 
 
 @pytest.mark.parametrize(
@@ -142,7 +153,7 @@ def test_weekly_repeat_stops_before_an_end_date_that_is_not_the_same_weekday():
 )
 def test_weekly_repeat_validation_creates_nothing(until, code):
     changed = []
-    service = WorkShiftService(fakes.FakeWorkShiftRepository(), on_change=changed.append)
+    service = weekly_service(changed)
 
     with pytest.raises(ValidationFailed) as exc:
         service.add_weekly_shifts(1, "Kavine", "2026-10-28", "10:00", "14:00", until)
@@ -151,7 +162,7 @@ def test_weekly_repeat_validation_creates_nothing(until, code):
 
 
 def test_repeat_field_over_http_adds_all_weeks_and_shows_errors():
-    client = logged_in_client(WorkShiftService(fakes.FakeWorkShiftRepository()))
+    client = logged_in_client(weekly_service())
 
     assert "Kartoti kas savaitę iki" in client.get("/work-shifts/").get_data(as_text=True)
     bad = client.post("/work-shifts/add", data={**SHIFT_FORM, "repeat_until": "2026-10-01"})
@@ -159,4 +170,4 @@ def test_repeat_field_over_http_adds_all_weeks_and_shows_errors():
 
     client.post("/work-shifts/add", data={**SHIFT_FORM, "repeat_until": "2026-11-16"})  # 26 Oct is a Monday
     page = client.get("/work-shifts/").get_data(as_text=True)
-    assert page.count("2026-11-09") >= 1 and "2026-11-16" in page
+    assert "2026-11-09" in page and "2026-11-16" in page and "Kas savaitę" in page

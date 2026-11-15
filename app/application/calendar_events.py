@@ -79,3 +79,28 @@ def work_shift_body(shift: WorkShift) -> dict:
         "start": _date_time(shift.work_date, shift.start_time),
         "end": _date_time(shift.work_date, shift.end_time),
     }
+
+
+def shift_series_body(workplace_name: str, start: time, end: time, dates: list[date]) -> dict:
+    """One Google event for a weekly series of work shifts.
+
+    `dates` are the days the shifts take place. The event repeats every week from the first to the last of them;
+    weeks in between that have no shift (removed or changed on their own) are excluded with EXDATE.
+    """
+    days = sorted(dates)
+    first, last = days[0], days[-1]
+    body = {
+        "summary": f"Darbas: {workplace_name}"[:MAX_SUMMARY_LENGTH],
+        "description": "Darbo pamaina",
+        "location": workplace_name,
+        "start": _date_time(first, start),
+        "end": _date_time(first, end),
+    }
+    if len(days) > 1:
+        present = set(days)
+        weeks = (first + timedelta(weeks=n) for n in range((last - first).days // 7 + 1))
+        gaps = [day for day in weeks if day not in present]
+        body["recurrence"] = [f"RRULE:FREQ=WEEKLY;UNTIL={last.strftime('%Y%m%d')}T235959Z"] + [
+            f"EXDATE;TZID={LOCAL_TIMEZONE}:{day.strftime('%Y%m%d')}T{start.strftime('%H%M')}00" for day in gaps
+        ]
+    return body

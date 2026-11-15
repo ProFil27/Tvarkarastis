@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable
 
 from app.application.background import CoalescingRunner, start_thread
-from app.application.calendar_events import study_event_body, work_shift_body
+from app.application.calendar_events import shift_series_body, study_event_body, work_shift_body
 from app.application.calendar_texts import calendar_error_text
 from app.application.errors import CalendarError
 from app.application.ports import (
@@ -24,6 +24,7 @@ from app.application.ports import (
     CalendarProvider,
     NotificationRepository,
     ScheduleRepository,
+    ShiftSeriesRepository,
     SyncOperationRepository,
     TokenCipher,
     WorkShiftRepository,
@@ -98,6 +99,7 @@ class CalendarSyncService:
         operations: SyncOperationRepository,
         schedules: ScheduleRepository,
         shifts: WorkShiftRepository,
+        series: ShiftSeriesRepository,
         notifications: NotificationRepository,
         now: Callable[[], datetime] = local_now,
         utc_now: Callable[[], datetime] = _utc_now,
@@ -110,6 +112,7 @@ class CalendarSyncService:
         self._operations = operations
         self._schedules = schedules
         self._shifts = shifts
+        self._series = series
         self._notifications = notifications
         self._now = now  # local time, shown to the user and sent to the calendar (N-29)
         self._utc_now = utc_now  # token expiry is kept in UTC
@@ -238,20 +241,39 @@ class CalendarSyncService:
             links = self._links.list_links(user_id)
             for_event = {link.study_event_id: link for link in links if link.study_event_id is not None}
             for_shift = {link.work_shift_id: link for link in links if link.work_shift_id is not None}
+            for_series = {link.shift_series_id: link for link in links if link.shift_series_id is not None}
             today = self._now().date()
 
+            # (Google event, its link, change time, study event id, shift id, series id)
             wanted = [
-                (study_event_body(event, today), for_event.get(event.id), event.updated_at, event.id, None)
+                (study_event_body(event, today), for_event.get(event.id), event.updated_at, event.id, None, None)
                 for event in events
-            ] + [
-                (work_shift_body(shift), for_shift.get(shift.id), shift.updated_at, None, shift.id) for shift in shifts
             ]
-            for body, link, changed_at, event_id, shift_id in wanted:
-                if body is None:  # a study event that never takes place inside its schedule's validity period
-                    continue
+            # shifts that follow a weekly series are exported once, as the series; the rest one by one
+            wanted += [
+                (work_shift_body(shift), for_shift.get(shift.id), shift.updated_at, None, shift.id, None)
+                for shift in shifts
+                if not shift.follows_series
+            ]
+            for series in self._series.list_for_user(user_id):
+                members = [shift for shift in shifts if shift.series_id == series.id and shift.follows_series]
+                body = None
+                if members:
+                    body = shift_series_body(
+                        members[0].workplace_name, series.start_time, series.end_time, [m.work_date for m in members]
+                    )
+                wanted.append((body, for_series.get(series.id), series.updated_at, None, None, series.id))
+
+            for body, link, changed_at, event_id, shift_id, series_id in wanted:
+                if body is None:
+                    if link is not None:  # nothing left to show (e.g. every shift of a series changed or removed)
+                        self._call(run, lambda t, g=link.google_event_id: self._provider.delete_event(t, g))
+                        self._links.remove_link(link.id)
+                        deleted += 1
+                    continue  # a study event that never takes place inside its schedule's validity period
                 if link is None:
                     google_id = self._call(run, lambda t, b=body: self._provider.create_event(t, b))
-                    self._links.add_link(user_id, event_id, shift_id, google_id, self._now())
+                    self._links.add_link(user_id, event_id, shift_id, google_id, self._now(), series_id)
                     created += 1
                 elif changed_at is not None and changed_at > link.synced_at:
                     if self._update_or_recreate(run, link, body):
