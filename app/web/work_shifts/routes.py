@@ -18,6 +18,7 @@ def _form() -> dict:
         "work_date": request.form.get("work_date", ""),
         "start_time": request.form.get("start_time", ""),
         "end_time": request.form.get("end_time", ""),
+        "repeat_until": request.form.get("repeat_until", "").strip(),
     }
 
 
@@ -31,14 +32,17 @@ def list_shifts():
 @login_required
 def add_shift():
     form = _form()
+    arguments = (current_user_id(), form["workplace_name"], form["work_date"], form["start_time"], form["end_time"])
     try:
-        services().work_shifts.add_shift(
-            current_user_id(), form["workplace_name"], form["work_date"], form["start_time"], form["end_time"]
-        )
+        if form["repeat_until"]:
+            added = len(services().work_shifts.add_weekly_shifts(*arguments, form["repeat_until"]))
+        else:
+            services().work_shifts.add_shift(*arguments)
+            added = 1
     except ValidationFailed as exc:
         return _render(messages.translate(exc.errors), form)
 
-    flash("Darbo pamaina išsaugota.", "success")
+    flash("Darbo pamaina išsaugota." if added == 1 else f"Išsaugota pamainų: {added}.", "success")
     return redirect(url_for("work_shifts.list_shifts"))
 
 

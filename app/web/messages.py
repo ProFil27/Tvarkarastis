@@ -4,6 +4,7 @@ from app.application.calendar_texts import calendar_error_text
 from app.domain.rules import (
     MAX_PDF_SIZE_BYTES,
     MAX_ROOM_LENGTH,
+    MAX_SHIFT_REPEATS,
     MAX_SUBJECT_LENGTH,
     MAX_WORKPLACE_LENGTH,
     MIN_PASSWORD_LENGTH,
@@ -21,6 +22,9 @@ _MESSAGES = {
         f"Darbovietės pavadinimas negali būti ilgesnis nei {MAX_WORKPLACE_LENGTH} simbolių."
     ),
     ("work_date", "invalid_date"): "Data turi būti formatu MMMM-mm-dd.",
+    ("repeat_until", "invalid_date"): "Data turi būti formatu MMMM-mm-dd.",
+    ("repeat_until", "before_start"): "Kartojimo pabaiga negali būti ankstesnė už pirmą datą.",
+    ("repeat_until", "too_many"): f"Vienu metu galima sukurti ne daugiau kaip {MAX_SHIFT_REPEATS} pamainų.",
     ("weekday", "invalid_choice"): "Pasirinkite savaitės dieną.",
     ("day_of_week", "invalid_choice"): "Pasirinkite savaitės dieną.",
     ("subject", "required"): "Dalykas yra privalomas.",

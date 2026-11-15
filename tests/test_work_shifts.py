@@ -118,3 +118,45 @@ def test_user_cannot_edit_another_users_shift_over_http():
     other.post("/work-shifts/1/edit", data={**SHIFT_FORM, "workplace_name": "Hacked"})
 
     assert "Kavine" in owner.get("/work-shifts/").get_data(as_text=True)
+
+
+def test_weekly_repeat_creates_the_same_weekday_every_week_up_to_the_end_date_inclusive():
+    changed = []
+    service = WorkShiftService(fakes.FakeWorkShiftRepository(), on_change=changed.append)
+
+    shifts = service.add_weekly_shifts(1, "Kavine", "2026-10-28", "10:00", "14:00", "2026-11-18")  # Wednesdays
+
+    assert [s.work_date.isoformat() for s in shifts] == ["2026-10-28", "2026-11-04", "2026-11-11", "2026-11-18"]
+    assert {s.weekday for s in shifts} == {Weekday.WEDNESDAY} and len(service.list_shifts(1)) == 4
+    assert changed == [1]  # the conflict search / calendar update run once, not once per shift
+
+
+def test_weekly_repeat_stops_before_an_end_date_that_is_not_the_same_weekday():
+    service = WorkShiftService(fakes.FakeWorkShiftRepository())
+    shifts = service.add_weekly_shifts(1, "Kavine", "2026-10-28", "10:00", "14:00", "2026-11-17")
+    assert [s.work_date.isoformat() for s in shifts] == ["2026-10-28", "2026-11-04", "2026-11-11"]
+
+
+@pytest.mark.parametrize(
+    "until,code", [("nope", "invalid_date"), ("2026-10-21", "before_start"), ("2030-01-01", "too_many")]
+)
+def test_weekly_repeat_validation_creates_nothing(until, code):
+    changed = []
+    service = WorkShiftService(fakes.FakeWorkShiftRepository(), on_change=changed.append)
+
+    with pytest.raises(ValidationFailed) as exc:
+        service.add_weekly_shifts(1, "Kavine", "2026-10-28", "10:00", "14:00", until)
+
+    assert exc.value.errors == {"repeat_until": code} and service.list_shifts(1) == [] and changed == []
+
+
+def test_repeat_field_over_http_adds_all_weeks_and_shows_errors():
+    client = logged_in_client(WorkShiftService(fakes.FakeWorkShiftRepository()))
+
+    assert "Kartoti kas savaitę iki" in client.get("/work-shifts/").get_data(as_text=True)
+    bad = client.post("/work-shifts/add", data={**SHIFT_FORM, "repeat_until": "2026-10-01"})
+    assert "Kartojimo pabaiga negali būti ankstesnė" in bad.get_data(as_text=True)
+
+    client.post("/work-shifts/add", data={**SHIFT_FORM, "repeat_until": "2026-11-16"})  # 26 Oct is a Monday
+    page = client.get("/work-shifts/").get_data(as_text=True)
+    assert page.count("2026-11-09") >= 1 and "2026-11-16" in page

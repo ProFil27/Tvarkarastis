@@ -35,6 +35,15 @@
                 {{ time_field('end_time', form.get('end_time', ''), 'in', errors.get('end_time'), 'end_time') }}
                 {% if errors.get('end_time') %}<div class="field-error">{{ errors['end_time'] }}</div>{% endif %}
             </div>
+            {% if not editing_id %}
+            <div>
+                <label for="repeat_until">Kartoti kas savaitę iki</label>
+                <input class="in {{ 'invalid' if errors.get('repeat_until') }}" type="date" id="repeat_until"
+                       name="repeat_until" value="{{ form.get('repeat_until', '') }}">
+                {% if errors.get('repeat_until') %}<div class="field-error">{{ errors['repeat_until'] }}</div>{% endif %}
+                <div class="hint">Nebūtina. Pamaina bus pridėta tą pačią savaitės dieną iki šios datos imtinai.</div>
+            </div>
+            {% endif %}
             <div class="form-actions">
                 {% if editing_id %}<a class="btn s" href="{{ url_for('work_shifts.list_shifts') }}">Atšaukti</a>{% endif %}
                 <button type="submit" class="btn p">{{ 'Išsaugoti' if editing_id else '+ Pridėti pamainą' }}</button>

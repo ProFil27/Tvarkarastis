@@ -96,7 +96,7 @@ body.auth{display:grid;grid-template-columns:1fr 1fr}
 .ico{width:52px;height:52px;border-radius:14px;background:#fff;display:grid;place-items:center;font-size:24px;border:1px solid var(--line)}
 .consent{display:flex;gap:12px;align-items:flex-start;margin:18px 0 20px;padding:14px 16px;background:var(--warn-l);border-radius:12px;color:#7A4A0B;font-weight:400}
 
-.form{display:grid;grid-template-columns:2fr 1.4fr 1fr 1fr auto;gap:16px;align-items:start}
+.form{display:grid;grid-template-columns:2fr 1.4fr 1fr 1fr 1.4fr auto;gap:16px;align-items:start}
 .form .btn.p{height:46px;margin-top:25px}
 @media(max-width:900px){.form{grid-template-columns:1fr 1fr}}
 

@@ -1,8 +1,10 @@
+from datetime import timedelta
+
 from app.application.errors import ValidationFailed
 from app.application.ports import WorkShiftRepository
 from app.application.validation import ChangeListener, ignore_changes, parse_date, parse_time, validate_time_range
 from app.domain.entities import WorkShift
-from app.domain.rules import MAX_WORKPLACE_LENGTH
+from app.domain.rules import MAX_SHIFT_REPEATS, MAX_WORKPLACE_LENGTH
 
 
 class WorkShiftService:
@@ -17,6 +19,28 @@ class WorkShiftService:
         )
         self._on_change(user_id)
         return shift
+
+    def add_weekly_shifts(
+        self, user_id: int, workplace_name: str, work_date: str, start: str, end: str, repeat_until: str
+    ) -> list[WorkShift]:
+        """Add the shift on `work_date` and on the same weekday of every following week up to `repeat_until`
+        (inclusive). Each occurrence is an ordinary shift; the change is announced once at the end.
+        """
+        self._validate(workplace_name, work_date, start, end)
+        first, last = parse_date(work_date), parse_date(repeat_until)
+        if last is None:
+            raise ValidationFailed({"repeat_until": "invalid_date"})
+        if last < first:
+            raise ValidationFailed({"repeat_until": "before_start"})
+        days = [first + timedelta(weeks=n) for n in range((last - first).days // 7 + 1)]
+        if len(days) > MAX_SHIFT_REPEATS:
+            raise ValidationFailed({"repeat_until": "too_many"})
+
+        shifts = [
+            self._shifts.add(user_id, workplace_name.strip(), day, parse_time(start), parse_time(end)) for day in days
+        ]
+        self._on_change(user_id)
+        return shifts
 
     def update_shift(
         self, user_id: int, shift_id: int, workplace_name: str, work_date: str, start: str, end: str
