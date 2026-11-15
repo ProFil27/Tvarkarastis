@@ -12,6 +12,7 @@ from app.application.ports import (
     ScheduleRepository,
     WorkShiftRepository,
 )
+from app.domain.academic_week import pattern_applies, week_number
 from app.domain.entities import Notification, StudyEvent, WorkShift
 from app.domain.weekday import Weekday
 
@@ -56,10 +57,21 @@ class WeekView:
     next_week: date
     days: list[DayView]
     has_data: bool
+    week_number: int  # 1 or 2: the study week (see domain/academic_week.py)
 
 
 def monday_of(day: date) -> date:
     return day - timedelta(days=day.weekday())
+
+
+def _runs_in_week(event: StudyEvent, week_start: date) -> bool:
+    """A study event repeats weekly (or on week 1 / week 2 only) inside the validity period of its schedule."""
+    day = week_start + timedelta(days=event.weekday.index)
+    if event.valid_from is not None and day < event.valid_from:
+        return False
+    if event.valid_to is not None and day > event.valid_to:
+        return False
+    return pattern_applies(event.week_pattern, day)
 
 
 class WeekViewService:
@@ -79,8 +91,10 @@ class WeekViewService:
         week_start = monday_of(week_start)
         week_end = week_start + timedelta(days=6)
 
-        events = self._schedules.list_study_events(user_id, week_start, week_end)
-        shifts = self._shifts.list_for_user(user_id)
+        events = [
+            e for e in self._schedules.list_study_events(user_id, week_start, week_end) if _runs_in_week(e, week_start)
+        ]
+        shifts = [s for s in self._shifts.list_for_user(user_id) if week_start <= s.work_date <= week_end]
         events_by_id = {e.id: e for e in events}
         shifts_by_id = {s.id: s for s in shifts}
         conflicts = [
@@ -93,12 +107,13 @@ class WeekViewService:
 
         days = []
         for weekday in Weekday:
+            day = week_start + timedelta(days=weekday.index)
             days.append(
                 DayView(
                     weekday=weekday,
-                    date=week_start + timedelta(days=weekday.index),
+                    date=day,
                     events=[WeekEvent(e, e.id in conflicted_events) for e in events if e.weekday == weekday],
-                    shifts=[WeekShift(s, s.id in conflicted_shifts) for s in shifts if s.weekday == weekday],
+                    shifts=[WeekShift(s, s.id in conflicted_shifts) for s in shifts if s.work_date == day],
                     conflicts=[
                         ConflictDetail(events_by_id[c.study_event_id], shifts_by_id[c.work_shift_id], c.overlap_minutes)
                         for c in conflicts
@@ -114,6 +129,7 @@ class WeekViewService:
             next_week=week_start + timedelta(days=7),
             days=days,
             has_data=bool(events or shifts),
+            week_number=week_number(week_start),
         )
 
     def unread_notifications(self, user_id: int) -> list[Notification]:

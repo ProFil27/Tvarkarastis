@@ -1,0 +1,15 @@
+{% if reminder %}
+    <div class="remind" role="status">
+        <div><b>{{ reminder.text.split('. ')[0] }}.</b> {{ reminder.text.split('. ', 1)[1] }}</div>
+        <div style="display:flex;gap:10px">
+            <form method="post" action="{{ url_for('reminders.disable') }}">
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <button type="submit" class="btn s btn-sm">Išjungti priminimus</button>
+            </form>
+            <form method="post" action="{{ url_for('reminders.close') }}">
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <button type="submit" class="btn s btn-sm">Uždaryti ✕</button>
+            </form>
+        </div>
+    </div>
+{% endif %}

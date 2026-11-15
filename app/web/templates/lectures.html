@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% from "_time_field.html" import time_field %}
+{% block title %}Paskaitos{% endblock %}
+{% block content %}
+    <div class="head">
+        <div>
+            <h1>Paskaitų redagavimas</h1>
+            <div class="sub">Pridėkite, pakeiskite ar pašalinkite paskaitą. Po pakeitimo konfliktai ieškomi iš naujo</div>
+        </div>
+    </div>
+
+    <form method="post" action="{{ url_for('lectures.save_event', event_id=editing_id) if editing_id else url_for('lectures.add_event') }}"
+          class="card" novalidate>
+        <h2 style="margin-bottom:16px">{{ 'Keisti paskaitą' if editing_id else 'Nauja paskaita' }}</h2>
+        <div class="lecture-form">
+            <div>
+                <label for="subject">Dalykas</label>
+                <input class="in {{ 'invalid' if errors.get('subject') }}" type="text" id="subject" name="subject"
+                       value="{{ form.subject }}" maxlength="120" placeholder="Duomenų bazės">
+                {% if errors.get('subject') %}<div class="field-error">{{ errors['subject'] }}</div>{% endif %}
+            </div>
+            <div>
+                <label for="event_type">Tipas</label>
+                <select class="in {{ 'invalid' if errors.get('event_type') }}" id="event_type" name="event_type">
+                    {% for code, label in event_type_choices %}
+                        <option value="{{ code }}" {% if form.event_type == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                {% if errors.get('event_type') %}<div class="field-error">{{ errors['event_type'] }}</div>{% endif %}
+            </div>
+            <div>
+                <label for="day_of_week">Diena</label>
+                <select class="in {{ 'invalid' if errors.get('day_of_week') }}" id="day_of_week" name="day_of_week">
+                    {% for code, label in weekday_choices %}
+                        <option value="{{ code }}" {% if form.day_of_week == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                {% if errors.get('day_of_week') %}<div class="field-error">{{ errors['day_of_week'] }}</div>{% endif %}
+            </div>
+            <div>
+                <label for="week_pattern">Savaitė</label>
+                <select class="in {{ 'invalid' if errors.get('week_pattern') }}" id="week_pattern" name="week_pattern">
+                    {% for code, label in week_pattern_choices %}
+                        <option value="{{ code }}" {% if form.week_pattern == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                {% if errors.get('week_pattern') %}<div class="field-error">{{ errors['week_pattern'] }}</div>{% endif %}
+            </div>
+            <div>
+                <label for="start_time">Pradžia</label>
+                {{ time_field('start_time', form.start_time, 'in', errors.get('start_time'), 'start_time') }}
+                {% if errors.get('start_time') %}<div class="field-error">{{ errors['start_time'] }}</div>{% endif %}
+            </div>
+            <div>
+                <label for="end_time">Pabaiga</label>
+                {{ time_field('end_time', form.end_time, 'in', errors.get('end_time'), 'end_time') }}
+                {% if errors.get('end_time') %}<div class="field-error">{{ errors['end_time'] }}</div>{% endif %}
+            </div>
+            <div>
+                <label for="room">Auditorija</label>
+                <input class="in {{ 'invalid' if errors.get('room') }}" type="text" id="room" name="room"
+                       value="{{ form.room }}" maxlength="60" placeholder="SRK-I-101">
+                {% if errors.get('room') %}<div class="field-error">{{ errors['room'] }}</div>{% endif %}
+            </div>
+        </div>
+        <div class="lecture-actions">
+            <label class="check"><input class="chk-input" type="checkbox" name="is_mandatory" {% if form.is_mandatory %}checked{% endif %}> Privaloma</label>
+            <div style="display:flex;gap:12px">
+                {% if editing_id %}<a class="btn s" href="{{ url_for('lectures.list_events') }}">Atšaukti</a>{% endif %}
+                <button type="submit" class="btn p">{{ 'Išsaugoti' if editing_id else '+ Pridėti paskaitą' }}</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+            <h2>Studijų įvykiai</h2>
+            <span class="badge n">{{ events|length }} {{ events|length|plural_lt('įrašas', 'įrašai', 'įrašų') }}</span>
+        </div>
+        {% if events %}
+            <div class="tw">
+                <table>
+                    <tr><th>Dalykas</th><th>Tipas</th><th>Diena</th><th>Savaitė</th><th>Laikas</th><th>Auditorija</th><th></th></tr>
+                    {% for event in events %}
+                        <tr class="{{ 'row-editing' if event.id == editing_id }}">
+                            <td><b>{{ event.subject_name }}</b>{% if not event.is_mandatory %} <span class="hint">(neprivaloma)</span>{% endif %}</td>
+                            <td>{{ event.event_type|event_type_label|capitalize }}</td>
+                            <td>{{ event.weekday.label }}</td>
+                            <td>{{ event.week_pattern|week_pattern_label|capitalize }}</td>
+                            <td>{{ event.start_time.strftime('%H:%M') }}–{{ event.end_time.strftime('%H:%M') }}</td>
+                            <td>{{ event.room or '—' }}</td>
+                            <td style="text-align:right;white-space:nowrap">
+                                <a class="btn s btn-sm" href="{{ url_for('lectures.edit_event', event_id=event.id) }}">Keisti</a>
+                                <a class="btn d" href="{{ url_for('lectures.confirm_remove', event_id=event.id) }}">Šalinti</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        {% else %}
+            <div class="sub">Paskaitų kol kas nėra. Pridėkite pirmąją arba įkelkite tvarkaraščio PDF.</div>
+        {% endif %}
+    </div>
+{% endblock %}

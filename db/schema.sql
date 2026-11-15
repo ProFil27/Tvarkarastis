@@ -1,4 +1,4 @@
--- Tvarkarastis - PostgreSQL schema (sprint 1)
+-- Tvarkarastis - PostgreSQL schema (sprint 1 + sprint 2; existing databases: db/migrations/)
 -- Class diagram: User, Schedule, Subject, StudyEvent, Workplace, WorkShift,
 -- PdfDocument, AiRequest, Conflict, Notification.
 -- TimeInterval is a structural class (the week view) and is not stored in a table.
@@ -17,6 +17,19 @@ CREATE TYPE conflict_status AS ENUM ('AKTYVUS', 'IGNORUOTAS', 'ISSPRESTAS');
 
 CREATE TYPE ai_request_type AS ENUM ('ATPAZINIMAS', 'ANALIZE');
 
+CREATE TYPE reminder_type AS ENUM ('SEMESTRO_PRADZIA', 'MENESIO_PRADZIA');
+
+CREATE TYPE calendar_account_status AS ENUM ('PRIJUNGTA', 'NEPRIJUNGTA', 'REIKIA_PERPRISIJUNGTI');
+
+CREATE TYPE sync_operation_type AS ENUM ('EKSPORTAS', 'ATNAUJINIMAS');
+
+CREATE TYPE sync_status AS ENUM ('VYKDOMAS', 'SEKMINGAS', 'KLAIDA');
+
+CREATE TYPE notification_type AS ENUM ('KONFLIKTAS', 'SISTEMOS_KLAIDA', 'PRIMINIMAS', 'SINCH_KLAIDA');
+
+-- On which study weeks an event takes place: every week, only week 1 or only week 2
+CREATE TYPE week_pattern AS ENUM ('KIEKVIENA', 'PIRMA', 'ANTRA');
+
 -- User: user account (managed by AK)
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -33,6 +46,7 @@ CREATE TABLE pdf_documents (
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     filename VARCHAR(255) NOT NULL,
     status pdf_status NOT NULL DEFAULT 'IKELTAS',
+    replace_existing BOOLEAN NOT NULL DEFAULT FALSE,
     uploaded_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
@@ -64,6 +78,8 @@ CREATE TABLE study_events (
     end_time TIME NOT NULL,
     room VARCHAR(100),
     is_mandatory BOOLEAN NOT NULL DEFAULT TRUE,
+    week_pattern week_pattern NOT NULL DEFAULT 'KIEKVIENA',
+    updated_at TIMESTAMP NOT NULL DEFAULT now(),
     CONSTRAINT study_event_time_check CHECK (end_time > start_time)
 );
 
@@ -74,14 +90,33 @@ CREATE TABLE workplaces (
     name VARCHAR(255) NOT NULL
 );
 
--- WorkShift: working-time interval on a given weekday (DVK)
+-- ShiftSeries: a work shift that repeats every week. Every occurrence is a row of work_shifts (series_id); a row that was
+-- changed on its own is an exception and is left alone when the series is edited (DVK)
+CREATE TABLE shift_series (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    workplace_id INTEGER NOT NULL REFERENCES workplaces(id) ON DELETE CASCADE,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    first_date DATE NOT NULL,
+    last_date DATE NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT now(),
+    CONSTRAINT shift_series_time_check CHECK (end_time > start_time),
+    CONSTRAINT shift_series_date_check CHECK (last_date >= first_date)
+);
+CREATE INDEX idx_shift_series_user_id ON shift_series(user_id);
+
+-- WorkShift: working-time interval on a concrete date (DVK)
 CREATE TABLE work_shifts (
     id SERIAL PRIMARY KEY,
     workplace_id INTEGER NOT NULL REFERENCES workplaces(id) ON DELETE CASCADE,
-    day_of_week weekday NOT NULL,
+    work_date DATE NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     is_changeable BOOLEAN NOT NULL DEFAULT FALSE,
+    series_id INTEGER REFERENCES shift_series(id) ON DELETE CASCADE,
+    is_exception BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at TIMESTAMP NOT NULL DEFAULT now(),
     CONSTRAINT work_shift_time_check CHECK (end_time > start_time)
 );
 
@@ -108,18 +143,74 @@ CREATE TABLE conflicts (
     status conflict_status NOT NULL DEFAULT 'AKTYVUS'
 );
 
--- Notification: in-system message to the user about a conflict (KVK)
+-- Notification: in-system message to the user (conflict, system error, reminder, sync error)
 CREATE TABLE notifications (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     conflict_id INTEGER REFERENCES conflicts(id) ON DELETE CASCADE,
     message TEXT NOT NULL,
+    notification_type notification_type NOT NULL DEFAULT 'KONFLIKTAS',
     created_at TIMESTAMP NOT NULL DEFAULT now(),
     is_read BOOLEAN NOT NULL DEFAULT FALSE
 );
 
+-- ReminderSetting: user's reminder preferences and the period whose reminder was closed (PK)
+CREATE TABLE reminder_settings (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    closed_period_start DATE,
+    closed_period_type reminder_type
+);
+
+-- CalendarAccount: the user's Google Calendar account; tokens are encrypted (KSK)
+CREATE TABLE calendar_accounts (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    google_email VARCHAR(255),
+    access_token_enc TEXT,
+    refresh_token_enc TEXT,
+    token_expires_at TIMESTAMP,  -- UTC
+    consent_given_at TIMESTAMP,
+    connected_at TIMESTAMP,
+    status calendar_account_status NOT NULL DEFAULT 'NEPRIJUNGTA'
+);
+
+-- CalendarEvent: link between a study event / work shift and its Google event (prevents duplicates).
+-- It survives the deletion of the local record (both ids NULL = orphan), so the Google event can still be deleted.
+CREATE TABLE calendar_events (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    study_event_id INTEGER REFERENCES study_events(id) ON DELETE SET NULL,
+    work_shift_id INTEGER REFERENCES work_shifts(id) ON DELETE SET NULL,
+    shift_series_id INTEGER REFERENCES shift_series(id) ON DELETE SET NULL,
+    google_event_id VARCHAR(1024) NOT NULL,
+    synced_at TIMESTAMP NOT NULL DEFAULT now(),
+    CONSTRAINT calendar_event_one_source CHECK (num_nonnulls(study_event_id, work_shift_id, shift_series_id) <= 1),
+    CONSTRAINT calendar_event_unique_google_id UNIQUE (user_id, google_event_id)
+);
+CREATE UNIQUE INDEX idx_calendar_events_study_event ON calendar_events(study_event_id) WHERE study_event_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_calendar_events_work_shift ON calendar_events(work_shift_id) WHERE work_shift_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_calendar_events_series ON calendar_events(shift_series_id) WHERE shift_series_id IS NOT NULL;
+CREATE INDEX idx_calendar_events_user_id ON calendar_events(user_id);
+
+-- SyncOperation: one export / update run and its result (KSK)
+CREATE TABLE sync_operations (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    operation_type sync_operation_type NOT NULL,
+    status sync_status NOT NULL DEFAULT 'VYKDOMAS',
+    started_at TIMESTAMP NOT NULL DEFAULT now(),
+    finished_at TIMESTAMP,
+    created_count INTEGER NOT NULL DEFAULT 0,
+    updated_count INTEGER NOT NULL DEFAULT 0,
+    deleted_count INTEGER NOT NULL DEFAULT 0,
+    error_code VARCHAR(40),
+    error_message TEXT
+);
+CREATE INDEX idx_sync_operations_user_id ON sync_operations(user_id);
+
 CREATE INDEX idx_schedules_user_id ON schedules(user_id);
 CREATE INDEX idx_study_events_schedule_id ON study_events(schedule_id);
 CREATE INDEX idx_work_shifts_workplace_id ON work_shifts(workplace_id);
+CREATE INDEX idx_work_shifts_work_date ON work_shifts(work_date);
 CREATE INDEX idx_conflicts_user_id ON conflicts(user_id);
 CREATE INDEX idx_notifications_user_id ON notifications(user_id);

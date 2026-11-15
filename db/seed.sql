@@ -1,5 +1,5 @@
 -- Demo data (N-16: at least 3-5 rows in every table). Intended password of every demo user: "Slaptazodis123".
--- User 1 holds a real VilniusTech timetable (12 events); conflicts and overlaps are computed with the
+-- User 1 holds a real VilniusTech timetable (12 events, 5 of them only on week 1 or week 2); conflicts and overlaps are computed with the
 -- same rule as the application (touching intervals are not conflicts).
 
 INSERT INTO users (id, name, email, password_hash, ai_consent) VALUES
@@ -32,39 +32,40 @@ INSERT INTO subjects (id, schedule_id, name) VALUES
     (11, 3, 'Fizika'),
     (12, 3, 'Programavimo pagrindai');
 
-INSERT INTO study_events (id, schedule_id, subject_id, event_type, day_of_week, start_time, end_time, room, is_mandatory) VALUES
-    (1, 1, 1, 'PRATYBOS', 'PIRMADIENIS', '12:10', '13:45', 'S6(SRL-I) 501', TRUE),
-    (2, 1, 1, 'PASKAITA', 'PIRMADIENIS', '14:30', '16:05', 'S2(SRA-I) A02', TRUE),
-    (3, 1, 2, 'PASKAITA', 'PIRMADIENIS', '16:20', '17:55', 'S2(SRA-I) A01', TRUE),
-    (4, 1, 3, 'PASKAITA', 'ANTRADIENIS', '12:10', '13:45', 'S2(SRA-I) A02', TRUE),
-    (5, 1, 3, 'PRATYBOS', 'ANTRADIENIS', '14:30', '16:05', 'S5(SRK-II) 206', TRUE),
-    (6, 1, 4, 'PRATYBOS', 'ANTRADIENIS', '14:30', '16:05', 'S5(SRK-II) 206', TRUE),
-    (7, 1, 2, 'PRATYBOS', 'ANTRADIENIS', '16:20', '17:55', 'S5(SRK-II) 201', TRUE),
-    (8, 1, 5, 'PRATYBOS', 'TRECIADIENIS', '12:10', '13:45', 'S2(SRA-I) A02', TRUE),
-    (9, 1, 5, 'PRATYBOS', 'TRECIADIENIS', '14:30', '16:05', 'S2(SRA-I) A02', TRUE),
-    (10, 1, 4, 'PASKAITA', 'TRECIADIENIS', '14:30', '16:05', 'S2(SRA-I) A02', TRUE),
-    (11, 1, 6, 'PASKAITA', 'KETVIRTADIENIS', '10:20', '11:55', 'S4(SRA-II) A09', TRUE),
-    (12, 1, 6, 'LABORATORINIS_DARBAS', 'KETVIRTADIENIS', '12:10', '13:45', 'S6(SRL-I) 427', TRUE),
-    (13, 2, 7, 'PASKAITA', 'PIRMADIENIS', '08:30', '10:00', 'SRK-I-401', TRUE),
-    (14, 2, 7, 'PRATYBOS', 'ANTRADIENIS', '10:15', '11:45', 'SRK-II-211', TRUE),
-    (15, 2, 8, 'PASKAITA', 'TRECIADIENIS', '10:15', '11:45', 'SRK-I-105', TRUE),
-    (16, 2, 9, 'PRATYBOS', 'PENKTADIENIS', '12:00', '13:30', 'SRA-II-312', TRUE),
-    (17, 3, 10, 'PASKAITA', 'PIRMADIENIS', '10:15', '11:45', 'SRK-I-201', TRUE),
-    (18, 3, 11, 'PASKAITA', 'KETVIRTADIENIS', '08:30', '10:00', 'SRK-II-110', TRUE),
-    (19, 3, 12, 'LABORATORINIS_DARBAS', 'PENKTADIENIS', '10:15', '11:45', 'SRL-I-214', TRUE);
+INSERT INTO study_events (id, schedule_id, subject_id, event_type, day_of_week, start_time, end_time, room, is_mandatory, week_pattern) VALUES
+    (1, 1, 1, 'PRATYBOS', 'PIRMADIENIS', '12:10', '13:45', 'S6(SRL-I) 501', TRUE, 'KIEKVIENA'),
+    (2, 1, 1, 'PASKAITA', 'PIRMADIENIS', '14:30', '16:05', 'S2(SRA-I) A02', TRUE, 'KIEKVIENA'),
+    (3, 1, 2, 'PASKAITA', 'PIRMADIENIS', '16:20', '17:55', 'S2(SRA-I) A01', TRUE, 'KIEKVIENA'),
+    (4, 1, 3, 'PASKAITA', 'ANTRADIENIS', '12:10', '13:45', 'S2(SRA-I) A02', TRUE, 'KIEKVIENA'),
+    (5, 1, 3, 'PRATYBOS', 'ANTRADIENIS', '14:30', '16:05', 'S5(SRK-II) 206', TRUE, 'ANTRA'),
+    (6, 1, 4, 'PRATYBOS', 'ANTRADIENIS', '14:30', '16:05', 'S5(SRK-II) 206', TRUE, 'PIRMA'),
+    (7, 1, 2, 'PRATYBOS', 'ANTRADIENIS', '16:20', '17:55', 'S5(SRK-II) 201', TRUE, 'ANTRA'),
+    (8, 1, 5, 'PRATYBOS', 'TRECIADIENIS', '12:10', '13:45', 'S2(SRA-I) A02', TRUE, 'KIEKVIENA'),
+    (9, 1, 5, 'PRATYBOS', 'TRECIADIENIS', '14:30', '16:05', 'S2(SRA-I) A02', TRUE, 'PIRMA'),
+    (10, 1, 4, 'PASKAITA', 'TRECIADIENIS', '14:30', '16:05', 'S2(SRA-I) A02', TRUE, 'ANTRA'),
+    (11, 1, 6, 'PASKAITA', 'KETVIRTADIENIS', '10:20', '11:55', 'S4(SRA-II) A09', TRUE, 'KIEKVIENA'),
+    (12, 1, 6, 'LABORATORINIS_DARBAS', 'KETVIRTADIENIS', '12:10', '13:45', 'S6(SRL-I) 427', TRUE, 'KIEKVIENA'),
+    (13, 2, 7, 'PASKAITA', 'PIRMADIENIS', '08:30', '10:00', 'SRK-I-401', TRUE, 'KIEKVIENA'),
+    (14, 2, 7, 'PRATYBOS', 'ANTRADIENIS', '10:15', '11:45', 'SRK-II-211', TRUE, 'KIEKVIENA'),
+    (15, 2, 8, 'PASKAITA', 'TRECIADIENIS', '10:15', '11:45', 'SRK-I-105', TRUE, 'KIEKVIENA'),
+    (16, 2, 9, 'PRATYBOS', 'PENKTADIENIS', '12:00', '13:30', 'SRA-II-312', TRUE, 'KIEKVIENA'),
+    (17, 3, 10, 'PASKAITA', 'PIRMADIENIS', '10:15', '11:45', 'SRK-I-201', TRUE, 'KIEKVIENA'),
+    (18, 3, 11, 'PASKAITA', 'KETVIRTADIENIS', '08:30', '10:00', 'SRK-II-110', TRUE, 'KIEKVIENA'),
+    (19, 3, 12, 'LABORATORINIS_DARBAS', 'PENKTADIENIS', '10:15', '11:45', 'SRL-I-214', TRUE, 'KIEKVIENA');
 
 INSERT INTO workplaces (id, user_id, name) VALUES
     (1, 1, 'Kavinė Rytas'),
     (2, 2, 'UAB Pavyzdys'),
     (3, 3, 'Sandėlis Vilnius');
 
-INSERT INTO work_shifts (id, workplace_id, day_of_week, start_time, end_time, is_changeable) VALUES
-    (1, 1, 'PIRMADIENIS', '15:00', '19:00', FALSE),
-    (2, 1, 'TRECIADIENIS', '15:00', '17:00', FALSE),
-    (3, 1, 'PENKTADIENIS', '10:00', '14:00', FALSE),
-    (4, 2, 'PIRMADIENIS', '09:00', '13:00', FALSE),
-    (5, 2, 'TRECIADIENIS', '14:00', '18:00', FALSE),
-    (6, 3, 'ANTRADIENIS', '08:00', '12:00', FALSE);
+INSERT INTO work_shifts (id, workplace_id, work_date, start_time, end_time, is_changeable) VALUES
+    (1, 1, '2026-11-16', '15:00', '19:00', FALSE),
+    (2, 1, '2026-11-18', '15:00', '17:00', FALSE),
+    (3, 1, '2026-11-20', '10:00', '14:00', FALSE),
+    (4, 2, '2026-11-16', '09:00', '13:00', FALSE),
+    (5, 2, '2026-11-18', '14:00', '18:00', FALSE),
+    (6, 3, '2026-11-17', '08:00', '12:00', FALSE),
+    (7, 1, '2026-11-25', '15:00', '17:00', FALSE);
 
 INSERT INTO ai_requests (id, user_id, pdf_document_id, request_type, started_at, finished_at, attempt_count, error_message) VALUES
     (1, 1, 1, 'ATPAZINIMAS', now(), now(), 1, NULL),
@@ -76,7 +77,7 @@ INSERT INTO ai_requests (id, user_id, pdf_document_id, request_type, started_at,
 INSERT INTO conflicts (id, user_id, study_event_id, work_shift_id, overlap_minutes, status) VALUES
     (1, 1, 2, 1, 65, 'AKTYVUS'),
     (2, 1, 3, 1, 95, 'AKTYVUS'),
-    (3, 1, 9, 2, 65, 'AKTYVUS'),
+    (3, 1, 9, 7, 65, 'AKTYVUS'),
     (4, 1, 10, 2, 65, 'AKTYVUS'),
     (5, 2, 13, 4, 60, 'AKTYVUS');
 
@@ -87,6 +88,29 @@ INSERT INTO notifications (id, user_id, conflict_id, message, is_read) VALUES
     (4, 1, 4, 'Aptiktas konfliktas: trečiadienis 14:30–16:05', FALSE),
     (5, 2, 5, 'Aptiktas konfliktas: pirmadienis 08:30–10:00', FALSE);
 
+INSERT INTO reminder_settings (user_id, enabled, closed_period_start, closed_period_type) VALUES
+    (1, TRUE, NULL, NULL),
+    (2, FALSE, NULL, NULL),
+    (3, TRUE, '2026-09-01', 'SEMESTRO_PRADZIA');
+
+-- Demo accounts: the stored tokens are placeholders, not real credentials. The application treats tokens it cannot
+-- decrypt as expired and asks the user to connect again.
+INSERT INTO calendar_accounts (user_id, google_email, access_token_enc, refresh_token_enc, token_expires_at, consent_given_at, connected_at, status) VALUES
+    (1, 'jonas.jonaitis@gmail.com', 'demo-not-a-real-token', 'demo-not-a-real-token', '2026-11-14 11:12', '2026-11-14 10:12', '2026-11-14 10:12', 'PRIJUNGTA'),
+    (2, 'ona.onaite@gmail.com', 'demo-not-a-real-token', 'demo-not-a-real-token', '2026-11-01 09:00', '2026-10-30 09:00', '2026-10-30 09:00', 'REIKIA_PERPRISIJUNGTI'),
+    (3, NULL, NULL, NULL, NULL, NULL, NULL, 'NEPRIJUNGTA');
+
+INSERT INTO calendar_events (id, user_id, study_event_id, work_shift_id, google_event_id, synced_at) VALUES
+    (1, 1, 2, NULL, 'demo_event_study_2', '2026-11-14 10:12'),
+    (2, 1, 3, NULL, 'demo_event_study_3', '2026-11-14 10:12'),
+    (3, 1, NULL, 1, 'demo_event_shift_1', '2026-11-14 10:12'),
+    (4, 1, NULL, NULL, 'demo_event_orphan', '2026-11-14 10:12');
+
+INSERT INTO sync_operations (id, user_id, operation_type, status, started_at, finished_at, created_count, updated_count, deleted_count, error_code, error_message) VALUES
+    (1, 1, 'EKSPORTAS', 'SEKMINGAS', '2026-11-14 10:12', '2026-11-14 10:13', 14, 0, 0, NULL, NULL),
+    (2, 1, 'ATNAUJINIMAS', 'SEKMINGAS', '2026-11-14 10:20', '2026-11-14 10:20', 0, 2, 1, NULL, NULL),
+    (3, 1, 'ATNAUJINIMAS', 'KLAIDA', '2026-11-13 18:05', '2026-11-13 18:06', 0, 0, 0, 'UNAVAILABLE', 'Kalendoriaus tiekėjas nepasiekiamas. Patikrinkite interneto ryšį ir bandykite dar kartą.');
+
 -- Keep the serial sequences ahead of the explicit ids above.
 SELECT setval(pg_get_serial_sequence('users', 'id'), 3);
 SELECT setval(pg_get_serial_sequence('pdf_documents', 'id'), 4);
@@ -94,7 +118,9 @@ SELECT setval(pg_get_serial_sequence('schedules', 'id'), 3);
 SELECT setval(pg_get_serial_sequence('subjects', 'id'), 12);
 SELECT setval(pg_get_serial_sequence('study_events', 'id'), 19);
 SELECT setval(pg_get_serial_sequence('workplaces', 'id'), 3);
-SELECT setval(pg_get_serial_sequence('work_shifts', 'id'), 6);
+SELECT setval(pg_get_serial_sequence('work_shifts', 'id'), 7);
 SELECT setval(pg_get_serial_sequence('ai_requests', 'id'), 5);
 SELECT setval(pg_get_serial_sequence('conflicts', 'id'), 5);
 SELECT setval(pg_get_serial_sequence('notifications', 'id'), 5);
+SELECT setval(pg_get_serial_sequence('calendar_events', 'id'), 4);
+SELECT setval(pg_get_serial_sequence('sync_operations', 'id'), 3);

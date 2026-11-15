@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_time_field.html" import time_field %}
 {% block title %}Darbo valandos{% endblock %}
 {% block content %}
     <div class="head">
@@ -8,8 +9,9 @@
         </div>
     </div>
 
-    <form method="post" action="{{ url_for('work_shifts.add_shift') }}" class="card" novalidate>
-        <h2 style="margin-bottom:16px">Nauja pamaina</h2>
+    <form method="post" action="{{ url_for('work_shifts.save_shift', shift_id=editing_id) if editing_id else url_for('work_shifts.add_shift') }}"
+          class="card" novalidate>
+        <h2 style="margin-bottom:16px">{{ 'Keisti pamainą' if editing_id else 'Nauja pamaina' }}</h2>
         <div class="form">
             <div>
                 <label for="workplace_name">Darbovietė</label>
@@ -18,28 +20,34 @@
                 {% if errors.get('workplace_name') %}<div class="field-error">{{ errors['workplace_name'] }}</div>{% endif %}
             </div>
             <div>
-                <label for="day_of_week">Diena</label>
-                <select class="in {{ 'invalid' if errors.get('weekday') }}" id="day_of_week" name="day_of_week">
-                    <option value="">Pasirinkite</option>
-                    {% for day in weekday_labels %}
-                        <option value="{{ day }}" {% if form.get('day_of_week') == day %}selected{% endif %}>{{ day }}</option>
-                    {% endfor %}
-                </select>
-                {% if errors.get('weekday') %}<div class="field-error">{{ errors['weekday'] }}</div>{% endif %}
+                <label for="work_date">Data</label>
+                <input class="in {{ 'invalid' if errors.get('work_date') }}" type="date" id="work_date"
+                       name="work_date" value="{{ form.get('work_date', '') }}">
+                {% if errors.get('work_date') %}<div class="field-error">{{ errors['work_date'] }}</div>{% endif %}
             </div>
             <div>
                 <label for="start_time">Pradžia</label>
-                <input class="in {{ 'invalid' if errors.get('start_time') }}" type="time" id="start_time"
-                       name="start_time" value="{{ form.get('start_time', '') }}">
+                {{ time_field('start_time', form.get('start_time', ''), 'in', errors.get('start_time'), 'start_time') }}
                 {% if errors.get('start_time') %}<div class="field-error">{{ errors['start_time'] }}</div>{% endif %}
             </div>
             <div>
                 <label for="end_time">Pabaiga</label>
-                <input class="in {{ 'invalid' if errors.get('end_time') }}" type="time" id="end_time"
-                       name="end_time" value="{{ form.get('end_time', '') }}">
+                {{ time_field('end_time', form.get('end_time', ''), 'in', errors.get('end_time'), 'end_time') }}
                 {% if errors.get('end_time') %}<div class="field-error">{{ errors['end_time'] }}</div>{% endif %}
             </div>
-            <button type="submit" class="btn p">+ Pridėti pamainą</button>
+            {% if not editing_id %}
+            <div>
+                <label for="repeat_until">Kartoti kas savaitę iki</label>
+                <input class="in {{ 'invalid' if errors.get('repeat_until') }}" type="date" id="repeat_until"
+                       name="repeat_until" value="{{ form.get('repeat_until', '') }}">
+                {% if errors.get('repeat_until') %}<div class="field-error">{{ errors['repeat_until'] }}</div>{% endif %}
+                <div class="hint">Nebūtina. Pamaina bus pridėta tą pačią savaitės dieną iki šios datos imtinai.</div>
+            </div>
+            {% endif %}
+            <div class="form-actions">
+                {% if editing_id %}<a class="btn s" href="{{ url_for('work_shifts.list_shifts') }}">Atšaukti</a>{% endif %}
+                <button type="submit" class="btn p">{{ 'Išsaugoti' if editing_id else '+ Pridėti pamainą' }}</button>
+            </div>
         </div>
     </form>
 
@@ -51,15 +59,23 @@
         {% if shifts %}
             <div class="tw">
                 <table>
-                    <tr><th>Darbovietė</th><th>Diena</th><th>Pradžia</th><th>Pabaiga</th><th></th></tr>
+                    <tr><th>Darbovietė</th><th>Data</th><th>Pradžia</th><th>Pabaiga</th><th>Serija</th><th></th></tr>
                     {% for shift in shifts %}
-                        <tr>
+                        <tr class="{{ 'row-editing' if shift.id == editing_id }}">
                             <td><b>{{ shift.workplace_name }}</b></td>
-                            <td>{{ shift.weekday.label }}</td>
+                            <td>{{ shift.work_date.isoformat() }} <span class="hint">{{ shift.weekday.label }}</span></td>
                             <td>{{ shift.start_time.strftime('%H:%M') }}</td>
                             <td>{{ shift.end_time.strftime('%H:%M') }}</td>
-                            <td style="text-align:right">
-                                <form method="post" action="{{ url_for('work_shifts.delete_shift', shift_id=shift.id) }}">
+                            <td>
+                                {% if shift.series_id %}
+                                    <a class="chip {{ 'n' if shift.is_exception else 'work' }}"
+                                       href="{{ url_for('work_shifts.edit_series', series_id=shift.series_id) }}"
+                                       title="Keisti visą pamainų seriją">{{ 'Išimtis' if shift.is_exception else 'Kas savaitę' }} ›</a>
+                                {% endif %}
+                            </td>
+                            <td style="text-align:right;white-space:nowrap">
+                                <a class="btn s btn-sm" href="{{ url_for('work_shifts.edit_shift', shift_id=shift.id) }}">Keisti</a>
+                                <form method="post" style="display:inline" action="{{ url_for('work_shifts.delete_shift', shift_id=shift.id) }}">
                                     <button type="submit" class="btn d">Šalinti</button>
                                 </form>
                             </td>

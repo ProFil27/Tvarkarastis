@@ -10,10 +10,13 @@
             <a class="arr" href="{{ url_for('week.view', week=week.previous_week.isoformat()) }}" title="Ankstesnė savaitė">‹</a>
             <div class="card" style="margin:0;padding:10px 18px;font-weight:600">
                 {{ week.week_start.isoformat() }} – {{ week.week_end.isoformat() }}
+                <span class="badge n" style="margin-left:8px">{{ week.week_number }} savaitė</span>
             </div>
             <a class="arr" href="{{ url_for('week.view', week=week.next_week.isoformat()) }}" title="Kita savaitė">›</a>
         </div>
     </div>
+
+    {% include "_reminder.html" %}
 
     {% for n in notifications %}
         <div class="flash flash-error">
@@ -50,6 +53,7 @@
                             <span class="ev">
                                 <span class="chip study">{{ item.event.start_time.strftime('%H:%M') }}–{{ item.event.end_time.strftime('%H:%M') }}</span>
                                 {{ item.event.subject_name }}{% if item.event.room %} <span class="hint">({{ item.event.room }})</span>{% endif %}
+                                {% if item.event.week_pattern.name != 'EVERY_WEEK' %}<span class="badge n">{{ item.event.week_pattern|week_pattern_label }}</span>{% endif %}
                             </span>
                         {% else %}
                             <span class="empty">—</span>

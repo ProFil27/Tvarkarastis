@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Pašalinti paskaitą{% endblock %}
+{% block content %}
+    <div class="card dialog">
+        <h2>Pašalinti paskaitą?</h2>
+        <div class="sub" style="margin:8px 0 18px">
+            Bus pašalinta „{{ event.subject_name }}“ ({{ event.weekday.label|lower }}
+            {{ event.start_time.strftime('%H:%M') }}–{{ event.end_time.strftime('%H:%M') }}).
+            Šio veiksmo atšaukti negalima.
+        </div>
+        <form method="post" action="{{ url_for('lectures.remove_event', event_id=event.id) }}"
+              style="display:flex;justify-content:flex-end;gap:12px">
+            <a class="btn s" href="{{ url_for('lectures.list_events') }}">Atšaukti</a>
+            <button type="submit" class="btn p">Pašalinti</button>
+        </form>
+    </div>
+{% endblock %}

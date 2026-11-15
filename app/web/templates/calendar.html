@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Kalendorius{% endblock %}
+{% block head %}{% if report.syncing %}<meta http-equiv="refresh" content="3">{% endif %}{% endblock %}
+{% block content %}
+    <div class="head">
+        <div>
+            <h1>Google Calendar</h1>
+            <div class="sub">Eksportuokite suvestą tvarkaraštį į savo kalendorių ir sekite sinchronizavimo būseną</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="row">
+            <div>
+                <h2>Paskyra</h2>
+                {% if report.status.name == 'CONNECTED' %}
+                    <div class="sub">{{ report.google_email or 'Google paskyra' }}{% if report.connected_at %} · prijungta {{ report.connected_at|local_datetime }}{% endif %}</div>
+                {% elif report.status.name == 'RECONNECT_REQUIRED' %}
+                    <div class="sub">Prisijunkite prie Google Calendar iš naujo.</div>
+                {% else %}
+                    <div class="sub">Paskyra neprijungta.</div>
+                {% endif %}
+            </div>
+            {% if report.status.name == 'CONNECTED' %}
+                <span class="badge ok">● Prijungta</span>
+            {% elif report.status.name == 'RECONNECT_REQUIRED' %}
+                <span class="badge bad">● Reikia prisijungti iš naujo</span>
+            {% else %}
+                <span class="badge n">● Neprijungta</span>
+            {% endif %}
+        </div>
+
+        {% if not available %}
+            <div class="notice-warn">Google Calendar integracija nesukonfigūruota (trūksta GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET ar TOKEN_ENCRYPTION_KEY).</div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('calendar.connect') }}">
+            <label class="consent">
+                <input type="checkbox" name="consent" {% if report.status.name == 'CONNECTED' %}checked{% endif %}>
+                <span>Sutinku, kad dalykas, įvykio tipas, laikas, auditorija ir darbovietė būtų siunčiami į Google Calendar.</span>
+            </label>
+            <div class="hint" style="margin:-6px 0 14px">Sistema prašo tik prieigos prie kalendoriaus įvykių ir el. pašto adreso; kitų jūsų kalendoriaus įvykių neskaito.</div>
+            <button type="submit" class="btn {{ 's' if report.status.name == 'CONNECTED' else 'p' }}">
+                {{ 'Prijungti iš naujo' if report.status.name == 'CONNECTED' else 'Prijungti Google Calendar' }}
+            </button>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="row">
+            <h2>Sinchronizavimas</h2>
+            {% if report.status.name == 'RECONNECT_REQUIRED' %}
+                <span class="badge bad">● Reikia prisijungti iš naujo</span>
+            {% elif report.status.name != 'CONNECTED' %}
+                <span class="badge n">Neprijungta</span>
+            {% elif report.syncing %}
+                <span class="badge n">⟳ Sinchronizuojama…</span>
+            {% elif not report.exported %}
+                <span class="badge n">Dar neeksportuota</span>
+            {% elif report.last_error %}
+                <span class="badge bad">● Klaida</span>
+            {% else %}
+                <span class="badge ok">● Sinchronizuota</span>
+            {% endif %}
+        </div>
+        <div class="stat">
+            <div>Paskutinis sėkmingas sinchronizavimas<b>{{ report.last_success_at|local_datetime }}</b></div>
+            <div>Paskutinė operacija<b>{{ operation_labels.get(report.last_operation.operation_type.name, '—') if report.last_operation else '—' }}</b></div>
+            <div>Sukurta / atnaujinta / ištrinta<b>{% if report.last_operation %}{{ report.last_operation.created_count }} / {{ report.last_operation.updated_count }} / {{ report.last_operation.deleted_count }}{% else %}—{% endif %}</b></div>
+        </div>
+        {% if report.status.name == 'RECONNECT_REQUIRED' %}
+            <div class="hint" style="margin-top:14px">Prisijunkite prie Google Calendar iš naujo, kad sinchronizavimas vėl veiktų.</div>
+        {% elif report.status.name != 'CONNECTED' %}
+            <div class="hint" style="margin-top:14px">Prijunkite Google Calendar paskyrą, kad galėtumėte eksportuoti tvarkaraštį.</div>
+        {% endif %}
+        <div style="margin-top:18px;display:flex;gap:12px">
+            <form method="post" action="{{ url_for('calendar.export') }}">
+                <button type="submit" class="btn {{ 's' if report.exported else 'p' }}">Eksportuoti į Google Calendar</button>
+            </form>
+            <form method="post" action="{{ url_for('calendar.sync') }}">
+                <button type="submit" class="btn {{ 'p' if report.exported else 's' }}">Sinchronizuoti dar kartą</button>
+            </form>
+        </div>
+    </div>
+
+    {% if report.last_error %}
+        <div class="card error">
+            <div class="row">
+                <div>
+                    <h2 style="color:var(--bad)">Paskutinė klaida</h2>
+                    <div class="sub">{{ report.last_error.finished_at|local_datetime }} · {{ error_text(report.last_error.error_code) }}</div>
+                </div>
+                <span class="badge bad">Klaida</span>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="card">
+        <form method="post" action="{{ url_for('calendar.toggle_reminders') }}" class="row">
+            <div>
+                <h2>Priminimai</h2>
+                <div class="sub">Priminimas įkelti atnaujintus tvarkaraščius semestro ir mėnesio pradžioje</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px">
+                <span class="badge {{ 'ok' if reminders_enabled else 'n' }}">{{ 'Įjungta' if reminders_enabled else 'Išjungta' }}</span>
+                {% if reminders_enabled %}
+                    <button type="submit" class="btn s btn-sm">Išjungti</button>
+                {% else %}
+                    <input type="hidden" name="enabled" value="on">
+                    <button type="submit" class="btn s btn-sm">Įjungti</button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+{% endblock %}

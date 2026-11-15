@@ -12,10 +12,12 @@ from app.application.ports import (
     WorkShiftRepository,
 )
 from app.application.validation import format_time
-from app.domain.entities import AiRequestType, DetectedConflict, StudyEvent, WorkShift
+from app.domain.entities import AiRequestType, DetectedConflict, NotificationType, StudyEvent, WorkShift
 from app.domain.overlap import overlap_minutes
 
 log = logging.getLogger(__name__)
+
+CHECK_FAILED_MESSAGE = "Konfliktų paieška nepavyko. Bandykite dar kartą."
 
 
 class ConflictService:
@@ -38,8 +40,9 @@ class ConflictService:
     def run_check(self, user_id: int) -> None:
         """Detect conflicts for a user and create notifications for new ones.
 
-        Never raises into the caller (N-11): on failure the problem is logged and
-        previously stored conflicts stay unchanged.
+        Never raises into the caller (N-11, N-34): on failure the problem is logged, the user gets a
+        system notification and previously stored conflicts stay unchanged (KVK-8). Active conflicts that
+        are no longer present are marked resolved by the repository (KVK-7).
         """
         events = self._schedules.list_study_events(user_id)
         shifts = self._shifts.list_for_user(user_id)
@@ -50,10 +53,12 @@ class ConflictService:
         except AnalysisFailed as exc:
             log.warning("Conflict check failed: %s", exc)
             self._ai_log.finish(request_id, exc.attempts, str(exc))
+            self._notify_failure(user_id)
             return
         except Exception as exc:  # noqa: BLE001 - the caller must never see analyzer failures
             log.exception("Unexpected conflict check error")
             self._ai_log.finish(request_id, 0, str(exc))
+            self._notify_failure(user_id)
             return
 
         self._ai_log.finish(request_id, result.attempts, None)
@@ -63,6 +68,12 @@ class ConflictService:
         for conflict in self._conflicts.replace_active(user_id, verified):
             event = events_by_id[conflict.study_event_id]
             self._notifications.add(user_id, conflict.id, _notification_text(event))
+
+    def _notify_failure(self, user_id: int) -> None:
+        """Tell the user the check did not run, once until they dismiss the message."""
+        if any(n.message == CHECK_FAILED_MESSAGE for n in self._notifications.list_unread(user_id)):
+            return
+        self._notifications.add(user_id, None, CHECK_FAILED_MESSAGE, NotificationType.SYSTEM_ERROR)
 
     @staticmethod
     def _verify(

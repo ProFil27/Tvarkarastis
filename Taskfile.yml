@@ -39,6 +39,11 @@ tasks:
     cmds:
       - docker compose logs -f app
 
+  migrate:
+    desc: Apply db/migrations/*.sql to an existing database (new databases already get the full schema)
+    cmds:
+      - for f in db/migrations/*.sql; do docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1' < "$f"; done
+
   seed:
     desc: Load demo data (db/seed.sql, N-16)
     cmds:

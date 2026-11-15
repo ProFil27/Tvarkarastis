@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Pašalinti pamainų seriją{% endblock %}
+{% block content %}
+    <div class="card dialog">
+        <h2>Pašalinti visą pamainų seriją?</h2>
+        <div class="sub" style="margin:8px 0 18px">
+            Bus pašalintos visos „{{ series.workplace_name }}“ pamainos
+            {{ series.first_date.isoformat() }} – {{ series.last_date.isoformat() }}
+            ({{ series.start_time.strftime('%H:%M') }}–{{ series.end_time.strftime('%H:%M') }}). Šio veiksmo atšaukti negalima.
+        </div>
+        <form method="post" action="{{ url_for('work_shifts.remove_series', series_id=series.id) }}"
+              style="display:flex;justify-content:flex-end;gap:12px">
+            <a class="btn s" href="{{ url_for('work_shifts.edit_series', series_id=series.id) }}">Atšaukti</a>
+            <button type="submit" class="btn p">Pašalinti seriją</button>
+        </form>
+    </div>
+{% endblock %}

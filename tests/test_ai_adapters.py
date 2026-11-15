@@ -4,7 +4,7 @@ import base64
 import io
 import json
 from contextlib import nullcontext
-from datetime import time
+from datetime import date, time
 from urllib.error import HTTPError
 
 import pytest
@@ -199,7 +199,7 @@ def test_analyzer_skips_the_ai_call_when_there_is_nothing_to_compare():
 
 def test_analyzer_returns_detected_conflicts_and_reports_failure():
     event = StudyEvent(1, "Programavimas", StudyEventType.LECTURE, Weekday.MONDAY, time(9, 0), time(10, 30), None)
-    shift = WorkShift(1, "Kavine", Weekday.MONDAY, time(10, 0), time(14, 0))
+    shift = WorkShift(1, "Kavine", date(2026, 10, 26), time(10, 0), time(14, 0))
     detected = [{"study_event_id": 1, "work_shift_id": 1, "overlap_minutes": 30}]
 
     ok = GeminiConflictAnalyzer(StubClient(detected)).analyze([event], [shift])

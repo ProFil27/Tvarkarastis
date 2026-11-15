@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Pašalinti ankstesnį tvarkaraštį{% endblock %}
+{% block content %}
+    <form method="post" action="{{ url_for('schedule.submit_review') }}" class="card dialog">
+        {# The reviewed rows travel with the form so nothing is lost if the user cancels or confirms. #}
+        <input type="hidden" name="row_count" value="{{ rows|length }}">
+        <input type="hidden" name="valid_from" value="{{ period.get('valid_from', '') }}">
+        <input type="hidden" name="valid_to" value="{{ period.get('valid_to', '') }}">
+        {% for row in rows %}
+            {% set i = loop.index0 %}
+            <input type="hidden" name="subject_{{ i }}" value="{{ row.subject }}">
+            <input type="hidden" name="event_type_{{ i }}" value="{{ row.event_type }}">
+            <input type="hidden" name="day_of_week_{{ i }}" value="{{ row.day_of_week }}">
+            <input type="hidden" name="week_pattern_{{ i }}" value="{{ row.week_pattern }}">
+            <input type="hidden" name="start_time_{{ i }}" value="{{ row.start_time }}">
+            <input type="hidden" name="end_time_{{ i }}" value="{{ row.end_time }}">
+            <input type="hidden" name="room_{{ i }}" value="{{ row.room }}">
+            {% if row.is_mandatory %}<input type="hidden" name="is_mandatory_{{ i }}" value="on">{% endif %}
+        {% endfor %}
+        <h2>Pašalinti ankstesnį tvarkaraštį?</h2>
+        <div class="sub" style="margin:8px 0 18px">
+            Bus pašalinta {{ count }} ankstesnio tvarkaraščio įrašų. Tęsti? Šio veiksmo atšaukti negalima.
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:12px">
+            <button type="submit" name="action" value="cancel_replace" class="btn s">Atšaukti</button>
+            <button type="submit" name="action" value="confirm_replace" class="btn p">Pašalinti ir išsaugoti</button>
+        </div>
+    </form>
+{% endblock %}

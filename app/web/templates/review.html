@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_time_field.html" import time_field %}
 {% block title %}Atpažintų duomenų peržiūra{% endblock %}
 {% block content %}
     <div class="head">
@@ -18,10 +19,25 @@
             </div>
             <span class="badge ok">{{ entries|length }} {{ entries|length|plural_lt('įrašas atpažintas', 'įrašai atpažinti', 'įrašų atpažinta') }}</span>
         </div>
+        <div class="period">
+            <div>
+                <label for="valid_from">Galioja nuo</label>
+                <input class="in {{ 'invalid' if period_errors.get('valid_from') }}" type="date" id="valid_from"
+                       name="valid_from" value="{{ period.get('valid_from', '') }}">
+                {% if period_errors.get('valid_from') %}<div class="field-error">{{ period_errors['valid_from'] }}</div>{% endif %}
+            </div>
+            <div>
+                <label for="valid_to">Galioja iki</label>
+                <input class="in {{ 'invalid' if period_errors.get('valid_to') }}" type="date" id="valid_to"
+                       name="valid_to" value="{{ period.get('valid_to', '') }}">
+                {% if period_errors.get('valid_to') %}<div class="field-error">{{ period_errors['valid_to'] }}</div>{% endif %}
+            </div>
+            <div class="hint">Jei laikotarpis nenurodytas, tvarkaraštis galios nuo šiandien vieną semestrą.</div>
+        </div>
         <div class="tw">
             <table class="review">
                 <tr>
-                    <th>Dalykas</th><th>Tipas</th><th>Diena</th><th>Pradžia</th><th>Pabaiga</th><th>Auditorija</th><th>Privalomas</th>
+                    <th>Dalykas</th><th>Tipas</th><th>Diena</th><th>Savaitė</th><th>Pradžia</th><th>Pabaiga</th><th>Auditorija</th><th>Privalomas</th>
                 </tr>
                 {% for entry in entries %}
                     {% set row_errors = errors[loop.index0] %}
@@ -48,13 +64,19 @@
                             {% if row_errors.get('day_of_week') %}<div class="field-error">{{ row_errors['day_of_week'] }}</div>{% endif %}
                         </td>
                         <td>
-                            <input class="cell {{ 'invalid' if row_errors.get('start_time') }}" type="time"
-                                   name="start_time_{{ loop.index0 }}" value="{{ entry.start_time }}">
+                            <select class="cell {{ 'invalid' if row_errors.get('week_pattern') }}" name="week_pattern_{{ loop.index0 }}">
+                                {% for code, label in week_pattern_choices %}
+                                    <option value="{{ code }}" {% if entry.week_pattern == code %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if row_errors.get('week_pattern') %}<div class="field-error">{{ row_errors['week_pattern'] }}</div>{% endif %}
+                        </td>
+                        <td>
+                            {{ time_field('start_time_' ~ loop.index0, entry.start_time, 'cell', row_errors.get('start_time')) }}
                             {% if row_errors.get('start_time') %}<div class="field-error">{{ row_errors['start_time'] }}</div>{% endif %}
                         </td>
                         <td>
-                            <input class="cell {{ 'invalid' if row_errors.get('end_time') }}" type="time"
-                                   name="end_time_{{ loop.index0 }}" value="{{ entry.end_time }}">
+                            {{ time_field('end_time_' ~ loop.index0, entry.end_time, 'cell', row_errors.get('end_time')) }}
                             {% if row_errors.get('end_time') %}<div class="field-error">{{ row_errors['end_time'] }}</div>{% endif %}
                         </td>
                         <td>

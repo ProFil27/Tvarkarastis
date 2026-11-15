@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Tvarkaraštis{% endblock %}</title>
+    {% block head %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -12,7 +13,9 @@
         <a class="brand" href="{{ url_for('home.index') }}"><div class="logo">▦</div>Tvarkaraštis</a>
         <div class="tabs">
             <a class="tab {{ 'on' if request.blueprint in ('week', 'schedule') }}" href="{{ url_for('week.view') }}">Tvarkaraštis</a>
+            <a class="tab {{ 'on' if request.blueprint == 'lectures' }}" href="{{ url_for('lectures.list_events') }}">Paskaitos</a>
             <a class="tab {{ 'on' if request.blueprint == 'work_shifts' }}" href="{{ url_for('work_shifts.list_shifts') }}">Darbo valandos</a>
+            <a class="tab {{ 'on' if request.blueprint == 'calendar' }}" href="{{ url_for('calendar.view') }}">Kalendorius</a>
         </div>
         <div class="user">
             <div class="avatar">{{ session.get('user_name')|initials }}</div>
@@ -26,5 +29,6 @@
         {% block content %}{% endblock %}
     </div>
 {% endblock %}
+    <script src="{{ url_for('static', filename='js/time_field.js') }}" defer></script>
 </body>
 </html>
