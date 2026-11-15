@@ -51,12 +51,18 @@ class GoogleCalendarClient:
         redirect_uri: str,
         sleep: Callable[[float], None] = time.sleep,
         retry_delays: tuple[float, ...] = SYNC_RETRY_DELAYS,
+        min_interval: float = 0.0,
     ):
         self._client_id = client_id
         self._client_secret = client_secret
         self._redirect_uri = redirect_uri
         self._sleep = sleep
         self._retry_delays = retry_delays
+        # Google answers HTTP 403 "rateLimitExceeded" to bursts of requests; at most one request is started per
+        # `min_interval` seconds (shared by all threads) so that parallel requests stay below that limit.
+        self._min_interval = min_interval
+        self._pace_lock = threading.Lock()
+        self._next_start = 0.0
         # The API client is not thread-safe: every thread keeps its own (access token -> client).
         self._local = threading.local()
         host = urlparse(redirect_uri).hostname
@@ -170,9 +176,21 @@ class GoogleCalendarClient:
             if exc.code != CalendarError.NOT_FOUND:  # already deleted in Google: nothing left to do
                 raise
 
+    def _pace(self) -> None:
+        """Wait until this request may start (see min_interval)."""
+        if self._min_interval <= 0:
+            return
+        with self._pace_lock:
+            now = time.monotonic()
+            start = max(now, self._next_start)
+            self._next_start = start + self._min_interval
+        if start > now:
+            self._sleep(start - now)
+
     def _execute(self, make_request):
         """Run one API request; network errors, HTTP 5xx and 429 are retried after 1 s, 2 s and 4 s (N-31)."""
         for attempt in range(len(self._retry_delays) + 1):
+            self._pace()
             try:
                 return make_request().execute(num_retries=0)
             except HttpError as exc:

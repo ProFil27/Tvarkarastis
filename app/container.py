@@ -84,7 +84,9 @@ def build_services(settings: Settings) -> Services:
     reminders = ReminderService(PostgresReminderSettingRepository(database), schedules, settings.semester_start_dates)
 
     calendar = CalendarSyncService(
-        GoogleCalendarClient(settings.google_client_id, settings.google_client_secret, settings.google_redirect_uri),
+        GoogleCalendarClient(
+            settings.google_client_id, settings.google_client_secret, settings.google_redirect_uri, min_interval=0.25
+        ),
         PostgresCalendarAccountRepository(database),
         FernetTokenCipher(settings.token_encryption_key),
         PostgresCalendarEventRepository(database),
@@ -94,7 +96,7 @@ def build_services(settings: Settings) -> Services:
         shift_series,
         notifications,
         background=True,
-        workers=8,
+        workers=4,
     )
     change_notifier.subscribe(calendar.on_data_changed)  # after the conflict check (F-28)
 

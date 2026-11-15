@@ -228,3 +228,16 @@ def test_deleting_an_event_that_is_already_gone_succeeds_but_other_errors_do_not
     with pytest.raises(CalendarError) as exc:
         client.delete_event(TOKENS, "g1")
     assert exc.value.code == CalendarError.AUTH_EXPIRED
+
+
+def test_requests_are_paced_so_that_bursts_stay_below_googles_rate_limit(monkeypatch):
+    sleeps = []
+    client = GoogleCalendarClient("id", "secret", REDIRECT, sleep=sleeps.append, min_interval=0.25)
+    monkeypatch.setattr(client, "_service", lambda tokens: FakeCalendarApi([None, None, None]))
+    now = [100.0]
+    monkeypatch.setattr(gkk.time, "monotonic", lambda: now[0])
+
+    for _ in range(3):  # three requests started at the same instant
+        client.create_event(TOKENS, {})
+
+    assert sleeps == [0.25, 0.5]  # the first starts at once, the others wait their turn
