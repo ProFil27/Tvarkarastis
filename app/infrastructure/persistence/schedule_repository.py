@@ -98,6 +98,11 @@ class PostgresScheduleRepository:
             cur.execute(query, params)
             return [_to_event(r) for r in cur.fetchall()]
 
+    def last_schedule_date(self, user_id: int) -> date | None:
+        with self._db.cursor() as cur:
+            cur.execute("SELECT max(created_at)::date AS last_upload FROM schedules WHERE user_id = %s", (user_id,))
+            return cur.fetchone()["last_upload"]
+
     def get_event(self, user_id: int, event_id: int) -> StudyEvent | None:
         with self._db.cursor() as cur:
             cur.execute(_EVENT_QUERY + " AND se.id = %s", (user_id, event_id))

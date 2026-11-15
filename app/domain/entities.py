@@ -32,6 +32,11 @@ class PdfStatus(Enum):
     FAILED = "KLAIDA"
 
 
+class ReminderType(Enum):
+    SEMESTER_START = "SEMESTRO_PRADZIA"
+    MONTH_START = "MENESIO_PRADZIA"
+
+
 class ConflictStatus(Enum):
     ACTIVE = "AKTYVUS"
     IGNORED = "IGNORUOTAS"
@@ -123,3 +128,21 @@ class Notification:
     id: int
     message: str
     notification_type: NotificationType = NotificationType.CONFLICT
+
+
+@dataclass(frozen=True)
+class ReminderSetting:
+    """A user's reminder preferences (F-21). `closed_period_start` is the period whose reminder was dismissed."""
+
+    user_id: int
+    enabled: bool = True
+    closed_period_start: date | None = None
+
+
+@dataclass(frozen=True)
+class Reminder:
+    """A reminder that should be shown now (F-20)."""
+
+    period_start: date
+    reminder_type: ReminderType
+    text: str

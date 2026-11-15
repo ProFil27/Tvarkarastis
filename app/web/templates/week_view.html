@@ -16,6 +16,8 @@
         </div>
     </div>
 
+    {% include "_reminder.html" %}
+
     {% for n in notifications %}
         <div class="flash flash-error">
             {{ n.message }}

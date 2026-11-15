@@ -17,6 +17,8 @@ from app.domain.entities import (
     NotificationType,
     PdfDocument,
     PdfStatus,
+    ReminderSetting,
+    ReminderType,
     StudyEvent,
     User,
     WorkShift,
@@ -66,6 +68,10 @@ class ScheduleRepository(Protocol):
         """All study events of the user; if a week is given, only schedules valid in that week."""
         ...
 
+    def last_schedule_date(self, user_id: int) -> date | None:
+        """Date on which the user last saved a schedule (None if never)."""
+        ...
+
     def get_event(self, user_id: int, event_id: int) -> StudyEvent | None:
         """The event only if it belongs to the user (N-21)."""
         ...
@@ -103,6 +109,16 @@ class WorkShiftRepository(Protocol):
     def remove(self, user_id: int, shift_id: int) -> bool:
         """Remove the shift only if it belongs to the user (N-21)."""
         ...
+
+
+class ReminderSettingRepository(Protocol):
+    def get(self, user_id: int) -> ReminderSetting:
+        """The user's settings; reminders are enabled by default."""
+        ...
+
+    def set_enabled(self, user_id: int, enabled: bool) -> None: ...
+
+    def set_closed_period(self, user_id: int, period_start: date, reminder_type: ReminderType) -> None: ...
 
 
 class ConflictRepository(Protocol):

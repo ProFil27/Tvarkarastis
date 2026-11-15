@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from app.application.auth_service import AuthService
 from app.application.change_notifier import ChangeNotifier
 from app.application.conflict_service import ConflictService
+from app.application.reminder_service import ReminderService
 from app.application.schedule_import_service import ScheduleImportService
 from app.application.study_event_service import StudyEventService
 from app.application.week_view_service import WeekViewService
@@ -24,6 +25,7 @@ from app.infrastructure.persistence.ai_request_log import PostgresAiRequestLog
 from app.infrastructure.persistence.conflict_repository import PostgresConflictRepository
 from app.infrastructure.persistence.notification_repository import PostgresNotificationRepository
 from app.infrastructure.persistence.pdf_document_repository import PostgresPdfDocumentRepository
+from app.infrastructure.persistence.reminder_repository import PostgresReminderSettingRepository
 from app.infrastructure.persistence.schedule_repository import PostgresScheduleRepository
 from app.infrastructure.persistence.user_repository import PostgresUserRepository
 from app.infrastructure.persistence.work_shift_repository import PostgresWorkShiftRepository
@@ -40,6 +42,7 @@ class Services:
     work_shifts: WorkShiftService | None = None
     conflicts: ConflictService | None = None
     week_view: WeekViewService | None = None
+    reminders: ReminderService | None = None
 
 
 def build_services(settings: Settings) -> Services:
@@ -70,6 +73,8 @@ def build_services(settings: Settings) -> Services:
     change_notifier.subscribe(conflicts.run_check)
     week_view = WeekViewService(schedules, shifts, conflict_repository, notifications)
 
+    reminders = ReminderService(PostgresReminderSettingRepository(database), schedules, settings.semester_start_dates)
+
     return Services(
         auth=auth,
         schedule_import=schedule_import,
@@ -77,4 +82,5 @@ def build_services(settings: Settings) -> Services:
         work_shifts=work_shifts,
         conflicts=conflicts,
         week_view=week_view,
+        reminders=reminders,
     )

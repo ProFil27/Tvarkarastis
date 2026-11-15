@@ -88,6 +88,11 @@ INSERT INTO notifications (id, user_id, conflict_id, message, is_read) VALUES
     (4, 1, 4, 'Aptiktas konfliktas: trečiadienis 14:30–16:05', FALSE),
     (5, 2, 5, 'Aptiktas konfliktas: pirmadienis 08:30–10:00', FALSE);
 
+INSERT INTO reminder_settings (user_id, enabled, closed_period_start, closed_period_type) VALUES
+    (1, TRUE, NULL, NULL),
+    (2, FALSE, NULL, NULL),
+    (3, TRUE, '2026-09-01', 'SEMESTRO_PRADZIA');
+
 -- Keep the serial sequences ahead of the explicit ids above.
 SELECT setval(pg_get_serial_sequence('users', 'id'), 3);
 SELECT setval(pg_get_serial_sequence('pdf_documents', 'id'), 4);

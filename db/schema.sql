@@ -17,6 +17,8 @@ CREATE TYPE conflict_status AS ENUM ('AKTYVUS', 'IGNORUOTAS', 'ISSPRESTAS');
 
 CREATE TYPE ai_request_type AS ENUM ('ATPAZINIMAS', 'ANALIZE');
 
+CREATE TYPE reminder_type AS ENUM ('SEMESTRO_PRADZIA', 'MENESIO_PRADZIA');
+
 CREATE TYPE notification_type AS ENUM ('KONFLIKTAS', 'SISTEMOS_KLAIDA', 'PRIMINIMAS', 'SINCH_KLAIDA');
 
 -- On which study weeks an event takes place: every week, only week 1 or only week 2
@@ -125,6 +127,14 @@ CREATE TABLE notifications (
     notification_type notification_type NOT NULL DEFAULT 'KONFLIKTAS',
     created_at TIMESTAMP NOT NULL DEFAULT now(),
     is_read BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+-- ReminderSetting: user's reminder preferences and the period whose reminder was closed (PK)
+CREATE TABLE reminder_settings (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    closed_period_start DATE,
+    closed_period_type reminder_type
 );
 
 CREATE INDEX idx_schedules_user_id ON schedules(user_id);

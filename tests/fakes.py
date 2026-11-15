@@ -12,6 +12,7 @@ from app.domain.entities import (
     NotificationType,
     PdfDocument,
     PdfStatus,
+    ReminderSetting,
     StudyEvent,
     StudyEventType,
     User,
@@ -59,6 +60,7 @@ class FakeScheduleRepository:
     def __init__(self):
         self.events: dict[int, list[StudyEvent]] = {}
         self.saved_schedules: list[dict] = []
+        self.last_upload: dict[int, date] = {}  # date of the user's last saved schedule (tests set it)
         self._next_id = 0
 
     def add(self, user_id, pdf_document_id, valid_from, valid_to, events):
@@ -69,6 +71,9 @@ class FakeScheduleRepository:
 
     def list_study_events(self, user_id, week_start=None, week_end=None):
         return list(self.events.get(user_id, []))
+
+    def last_schedule_date(self, user_id):
+        return self.last_upload.get(user_id)
 
     def _new_id(self):
         self._next_id += 1
@@ -96,6 +101,20 @@ class FakeScheduleRepository:
         before = self.events.get(user_id, [])
         self.events[user_id] = [e for e in before if e.id != event_id]
         return len(self.events[user_id]) != len(before)
+
+
+class FakeReminderSettingRepository:
+    def __init__(self):
+        self.settings: dict[int, ReminderSetting] = {}
+
+    def get(self, user_id):
+        return self.settings.get(user_id, ReminderSetting(user_id))
+
+    def set_enabled(self, user_id, enabled):
+        self.settings[user_id] = replace(self.get(user_id), enabled=enabled)
+
+    def set_closed_period(self, user_id, period_start, reminder_type):
+        self.settings[user_id] = replace(self.get(user_id), closed_period_start=period_start)
 
 
 class FakeWorkShiftRepository:
