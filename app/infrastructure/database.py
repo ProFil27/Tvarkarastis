@@ -11,6 +11,7 @@ import psycopg2
 import psycopg2.extras
 from psycopg2.pool import SimpleConnectionPool
 
+from app.domain.rules import LOCAL_TIMEZONE
 from app.infrastructure.config import Settings
 
 
@@ -24,6 +25,7 @@ class Database:
             dbname=settings.db_name,
             user=settings.db_user,
             password=settings.db_password,
+            options=f"-c timezone={LOCAL_TIMEZONE}",  # now() is local time, like the application clock
         )
 
     @contextmanager

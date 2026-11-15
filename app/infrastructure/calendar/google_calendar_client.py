@@ -6,20 +6,26 @@ another calendar means replacing this module only.
 
 import logging
 import os
+import time
 from datetime import datetime
+from typing import Callable
 from urllib.parse import urlparse
 
 import google.auth.exceptions
+import httplib2
 import requests
 from google.auth.transport.requests import Request
 from google.oauth2 import id_token
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from oauthlib.oauth2.rfc6749 import errors as oauth_errors
 
 from app.application.errors import CalendarError
 from app.application.ports import AuthorizationRequest
 from app.domain.entities import CalendarTokens
+from app.domain.rules import SYNC_RETRY_DELAYS
 
 log = logging.getLogger(__name__)
 
@@ -37,10 +43,20 @@ os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
 
 
 class GoogleCalendarClient:
-    def __init__(self, client_id: str, client_secret: str, redirect_uri: str):
+    def __init__(
+        self,
+        client_id: str,
+        client_secret: str,
+        redirect_uri: str,
+        sleep: Callable[[float], None] = time.sleep,
+        retry_delays: tuple[float, ...] = SYNC_RETRY_DELAYS,
+    ):
         self._client_id = client_id
         self._client_secret = client_secret
         self._redirect_uri = redirect_uri
+        self._sleep = sleep
+        self._retry_delays = retry_delays
+        self._services: dict[str, object] = {}  # access token -> API client, reused within a run
         host = urlparse(redirect_uri).hostname
         if redirect_uri.startswith("http://") and host in ("127.0.0.1", "localhost"):
             # The local prototype is reached over plain http on this computer only (N-27).
@@ -111,3 +127,64 @@ class GoogleCalendarClient:
             raise CalendarError(CalendarError.UNAVAILABLE, type(exc).__name__)
         expires_at: datetime | None = credentials.expiry
         return CalendarTokens(credentials.token, tokens.refresh_token, expires_at, tokens.email)
+
+    # ------------------------------------------------------------------ events (F-26, F-28, F-29)
+
+    def _service(self, tokens: CalendarTokens):
+        service = self._services.get(tokens.access_token)
+        if service is None:
+            self._services.clear()  # keep at most one client; older tokens are no longer used
+            service = build(
+                "calendar", "v3", credentials=Credentials(token=tokens.access_token), cache_discovery=False
+            )
+            self._services[tokens.access_token] = service
+        return service
+
+    def create_event(self, tokens: CalendarTokens, body: dict) -> str:
+        result = self._execute(lambda: self._service(tokens).events().insert(calendarId="primary", body=body))
+        return result["id"]
+
+    def update_event(self, tokens: CalendarTokens, google_event_id: str, body: dict) -> None:
+        self._execute(
+            lambda: self._service(tokens).events().update(calendarId="primary", eventId=google_event_id, body=body)
+        )
+
+    def delete_event(self, tokens: CalendarTokens, google_event_id: str) -> None:
+        try:
+            self._execute(
+                lambda: self._service(tokens).events().delete(calendarId="primary", eventId=google_event_id)
+            )
+        except CalendarError as exc:
+            if exc.code != CalendarError.NOT_FOUND:  # already deleted in Google: nothing left to do
+                raise
+
+    def _execute(self, make_request):
+        """Run one API request; network errors, HTTP 5xx and 429 are retried after 1 s, 2 s and 4 s (N-31)."""
+        for attempt in range(len(self._retry_delays) + 1):
+            try:
+                return make_request().execute(num_retries=0)
+            except HttpError as exc:
+                code, retryable = _classify_http_error(exc)
+                if not retryable:
+                    raise CalendarError(code, f"HTTP {exc.resp.status}")
+                reason = f"HTTP {exc.resp.status}"
+            except (OSError, httplib2.HttpLib2Error, google.auth.exceptions.TransportError) as exc:
+                reason = type(exc).__name__
+            if attempt < len(self._retry_delays):
+                log.warning("Calendar request failed (%s); retrying in %s s", reason, self._retry_delays[attempt])
+                self._sleep(self._retry_delays[attempt])
+        raise CalendarError(CalendarError.UNAVAILABLE, reason)
+
+
+def _classify_http_error(exc: HttpError) -> tuple[str, bool]:
+    """(CalendarError code, retryable) for an HTTP error from the Calendar API (GKK-3)."""
+    status = exc.resp.status
+    if status == 429 or status >= 500:
+        return CalendarError.UNAVAILABLE, True
+    if status == 403 and (b"rateLimitExceeded" in exc.content or b"userRateLimitExceeded" in exc.content):
+        return CalendarError.UNAVAILABLE, True
+    if status == 401:
+        return CalendarError.AUTH_EXPIRED, False
+    if status in (404, 410):
+        return CalendarError.NOT_FOUND, False
+    return CalendarError.REJECTED, False

@@ -102,3 +102,119 @@ def test_refresh_errors_are_translated(monkeypatch):
     with pytest.raises(CalendarError) as exc:
         client.refresh(CalendarTokens("old", None, None))  # nothing to refresh with
     assert exc.value.code == CalendarError.AUTH_EXPIRED
+
+
+# ----------------------------------------------------------------------------- events and retries (N-31)
+
+import httplib2  # noqa: E402
+from googleapiclient.errors import HttpError  # noqa: E402
+
+TOKENS = CalendarTokens("access-1", "refresh-1", None)
+
+
+def http_error(status, content=b"{}"):
+    return HttpError(httplib2.Response({"status": status}), content)
+
+
+class FakeRequest:
+    def __init__(self, outcomes, result):
+        self.outcomes, self.result = outcomes, result
+
+    def execute(self, num_retries=0):
+        assert num_retries == 0  # retries are ours, so that the waiting times are exactly 1, 2 and 4 seconds
+        outcome = self.outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return self.result
+
+
+class FakeCalendarApi:
+    """Mimics service.events().insert/update/delete(...) and records the number of attempts."""
+
+    def __init__(self, outcomes, result=None):
+        self.outcomes, self.result, self.attempts, self.requests = outcomes, result or {"id": "g1"}, 0, []
+
+    def events(self):
+        return self
+
+    def _request(self, kind, **kwargs):
+        self.requests.append((kind, kwargs))
+        api = self
+
+        class Counted(FakeRequest):
+            def execute(self, num_retries=0):
+                api.attempts += 1
+                return super().execute(num_retries)
+
+        return Counted(self.outcomes, self.result)
+
+    def insert(self, **kwargs):
+        return self._request("insert", **kwargs)
+
+    def update(self, **kwargs):
+        return self._request("update", **kwargs)
+
+    def delete(self, **kwargs):
+        return self._request("delete", **kwargs)
+
+
+def client_with(api, monkeypatch):
+    sleeps = []
+    client = GoogleCalendarClient("id", "secret", REDIRECT, sleep=sleeps.append)
+    monkeypatch.setattr(client, "_service", lambda tokens: api)
+    return client, sleeps
+
+
+def test_create_event_sends_the_body_to_the_primary_calendar_and_returns_the_google_id(monkeypatch):
+    api = FakeCalendarApi([None], {"id": "abc123"})
+    client, sleeps = client_with(api, monkeypatch)
+
+    assert client.create_event(TOKENS, {"summary": "Paskaita"}) == "abc123"
+    assert api.requests == [("insert", {"calendarId": "primary", "body": {"summary": "Paskaita"}})]
+    assert sleeps == []
+
+
+@pytest.mark.parametrize("failure", [http_error(503), http_error(500), http_error(429), requests.ConnectionError("x"),
+                                     TimeoutError("slow"), http_error(403, b'{"errors":[{"reason":"rateLimitExceeded"}]}')])
+def test_temporary_failures_are_retried_after_1_2_and_4_seconds(monkeypatch, failure):
+    api = FakeCalendarApi([failure, failure, failure, None])
+    client, sleeps = client_with(api, monkeypatch)
+
+    assert client.create_event(TOKENS, {}) == "g1"
+    assert sleeps == [1, 2, 4] and api.attempts == 4
+
+
+def test_after_three_retries_the_error_is_reported_as_unavailable(monkeypatch):
+    api = FakeCalendarApi([http_error(503)] * 4)
+    client, sleeps = client_with(api, monkeypatch)
+
+    with pytest.raises(CalendarError) as exc:
+        client.create_event(TOKENS, {})
+
+    assert exc.value.code == CalendarError.UNAVAILABLE and sleeps == [1, 2, 4] and api.attempts == 4  # at most 3 retries
+
+
+@pytest.mark.parametrize(
+    "status,content,expected",
+    [(401, b"{}", CalendarError.AUTH_EXPIRED), (400, b"{}", CalendarError.REJECTED),
+     (403, b'{"errors":[{"reason":"forbidden"}]}', CalendarError.REJECTED), (404, b"{}", CalendarError.NOT_FOUND)],
+)
+def test_permanent_errors_are_not_retried(monkeypatch, status, content, expected):
+    api = FakeCalendarApi([http_error(status, content)])
+    client, sleeps = client_with(api, monkeypatch)
+
+    with pytest.raises(CalendarError) as exc:
+        client.update_event(TOKENS, "g1", {})
+
+    assert exc.value.code == expected and sleeps == [] and api.attempts == 1
+    assert api.requests[0] == ("update", {"calendarId": "primary", "eventId": "g1", "body": {}})
+
+
+def test_deleting_an_event_that_is_already_gone_succeeds_but_other_errors_do_not(monkeypatch):
+    client, _ = client_with(FakeCalendarApi([http_error(404)]), monkeypatch)
+    client.delete_event(TOKENS, "g1")  # no exception
+
+    client, _ = client_with(FakeCalendarApi([http_error(401)]), monkeypatch)
+    with pytest.raises(CalendarError) as exc:
+        client.delete_event(TOKENS, "g1")
+    assert exc.value.code == CalendarError.AUTH_EXPIRED

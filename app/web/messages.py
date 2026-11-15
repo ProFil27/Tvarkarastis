@@ -49,6 +49,9 @@ _CALENDAR_MESSAGES = {
 }
 
 
+OPERATION_LABELS = {"EXPORT": "Eksportas", "UPDATE": "Atnaujinimas"}
+
+
 def calendar_error(code: str) -> str:
     """Lithuanian text (cause and next step) for a CalendarError code (F-25, F-31)."""
     return _CALENDAR_MESSAGES.get(code, _CALENDAR_MESSAGES["UNAVAILABLE"])

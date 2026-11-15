@@ -100,6 +100,17 @@ INSERT INTO calendar_accounts (user_id, google_email, access_token_enc, refresh_
     (2, 'ona.onaite@gmail.com', 'demo-not-a-real-token', 'demo-not-a-real-token', '2026-11-01 09:00', '2026-10-30 09:00', '2026-10-30 09:00', 'REIKIA_PERPRISIJUNGTI'),
     (3, NULL, NULL, NULL, NULL, NULL, NULL, 'NEPRIJUNGTA');
 
+INSERT INTO calendar_events (id, user_id, study_event_id, work_shift_id, google_event_id, synced_at) VALUES
+    (1, 1, 2, NULL, 'demo_event_study_2', '2026-11-14 10:12'),
+    (2, 1, 3, NULL, 'demo_event_study_3', '2026-11-14 10:12'),
+    (3, 1, NULL, 1, 'demo_event_shift_1', '2026-11-14 10:12'),
+    (4, 1, NULL, NULL, 'demo_event_orphan', '2026-11-14 10:12');
+
+INSERT INTO sync_operations (id, user_id, operation_type, status, started_at, finished_at, created_count, updated_count, deleted_count, error_code, error_message) VALUES
+    (1, 1, 'EKSPORTAS', 'SEKMINGAS', '2026-11-14 10:12', '2026-11-14 10:13', 14, 0, 0, NULL, NULL),
+    (2, 1, 'ATNAUJINIMAS', 'SEKMINGAS', '2026-11-14 10:20', '2026-11-14 10:20', 0, 2, 1, NULL, NULL),
+    (3, 1, 'ATNAUJINIMAS', 'KLAIDA', '2026-11-13 18:05', '2026-11-13 18:06', 0, 0, 0, 'UNAVAILABLE', 'Kalendoriaus tiekėjas nepasiekiamas. Patikrinkite interneto ryšį ir bandykite dar kartą.');
+
 -- Keep the serial sequences ahead of the explicit ids above.
 SELECT setval(pg_get_serial_sequence('users', 'id'), 3);
 SELECT setval(pg_get_serial_sequence('pdf_documents', 'id'), 4);
@@ -111,3 +122,5 @@ SELECT setval(pg_get_serial_sequence('work_shifts', 'id'), 7);
 SELECT setval(pg_get_serial_sequence('ai_requests', 'id'), 5);
 SELECT setval(pg_get_serial_sequence('conflicts', 'id'), 5);
 SELECT setval(pg_get_serial_sequence('notifications', 'id'), 5);
+SELECT setval(pg_get_serial_sequence('calendar_events', 'id'), 4);
+SELECT setval(pg_get_serial_sequence('sync_operations', 'id'), 3);

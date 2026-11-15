@@ -18,6 +18,7 @@ from app.application.ports import (
     ScheduleRepository,
 )
 from app.application.validation import ChangeListener, ignore_changes, parse_date
+from app.domain.clock import local_today
 from app.domain.entities import AiRequestType, PdfStatus
 from app.domain.rules import MAX_PDF_SIZE_BYTES, SEMESTER_LENGTH_DAYS
 
@@ -38,7 +39,7 @@ class ScheduleImportService:
         recognizer: ScheduleRecognizer,
         ai_log: AiRequestLog,
         on_schedule_saved: ChangeListener = ignore_changes,
-        today: Callable[[], date] = date.today,
+        today: Callable[[], date] = local_today,
     ):
         self._pdf_documents = pdf_documents
         self._schedules = schedules

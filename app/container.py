@@ -25,11 +25,13 @@ from app.infrastructure.config import Settings
 from app.infrastructure.database import Database
 from app.infrastructure.persistence.ai_request_log import PostgresAiRequestLog
 from app.infrastructure.persistence.calendar_account_repository import PostgresCalendarAccountRepository
+from app.infrastructure.persistence.calendar_event_repository import PostgresCalendarEventRepository
 from app.infrastructure.persistence.conflict_repository import PostgresConflictRepository
 from app.infrastructure.persistence.notification_repository import PostgresNotificationRepository
 from app.infrastructure.persistence.pdf_document_repository import PostgresPdfDocumentRepository
 from app.infrastructure.persistence.reminder_repository import PostgresReminderSettingRepository
 from app.infrastructure.persistence.schedule_repository import PostgresScheduleRepository
+from app.infrastructure.persistence.sync_operation_repository import PostgresSyncOperationRepository
 from app.infrastructure.persistence.user_repository import PostgresUserRepository
 from app.infrastructure.persistence.work_shift_repository import PostgresWorkShiftRepository
 from app.infrastructure.security import FernetTokenCipher, WerkzeugPasswordHasher
@@ -83,6 +85,10 @@ def build_services(settings: Settings) -> Services:
         GoogleCalendarClient(settings.google_client_id, settings.google_client_secret, settings.google_redirect_uri),
         PostgresCalendarAccountRepository(database),
         FernetTokenCipher(settings.token_encryption_key),
+        PostgresCalendarEventRepository(database),
+        PostgresSyncOperationRepository(database),
+        schedules,
+        shifts,
     )
 
     return Services(

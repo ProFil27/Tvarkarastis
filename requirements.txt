@@ -5,3 +5,4 @@ google-genai==2.33.0
 google-api-python-client==2.202.0
 google-auth-oauthlib==1.5.0
 cryptography==50.0.2
+tzdata==2026.6

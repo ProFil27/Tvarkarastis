@@ -19,6 +19,8 @@ def view():
         report=services().calendar.status(user_id),
         available=services().calendar.is_available(),
         reminders_enabled=services().reminders.is_enabled(user_id) if services().reminders else True,
+        operation_labels=messages.OPERATION_LABELS,
+        error_text=messages.calendar_error,
     )
 
 
@@ -55,6 +57,19 @@ def callback():
         flash(messages.calendar_error(exc.code), "error")
     else:
         flash("Google Calendar prijungtas.", "success")
+    return redirect(url_for("calendar.view"))
+
+
+@calendar_bp.route("/export", methods=["POST"])
+@login_required
+def export():
+    """Export the schedule to Google Calendar in one step (F-26, F-27)."""
+    try:
+        result = services().calendar.export(current_user_id())
+    except CalendarError as exc:
+        flash(messages.calendar_error(exc.code), "error")
+    else:
+        flash(f"Eksportuota: {result.created} įrašų.", "success")
     return redirect(url_for("calendar.view"))
 
 

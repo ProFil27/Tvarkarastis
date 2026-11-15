@@ -22,7 +22,9 @@ def make_service(provider=None, cipher=None):
     provider = provider or fakes.FakeCalendarProvider()
     accounts = fakes.FakeCalendarAccountRepository()
     service = CalendarSyncService(
-        provider, accounts, cipher or fakes.FakeTokenCipher(), now=lambda: NOW, utc_now=lambda: NOW
+        provider, accounts, cipher or fakes.FakeTokenCipher(), fakes.FakeCalendarEventRepository(),
+        fakes.FakeSyncOperationRepository(), fakes.FakeScheduleRepository(), fakes.FakeWorkShiftRepository(),
+        now=lambda: NOW, utc_now=lambda: NOW,
     )
     return service, provider, accounts
 

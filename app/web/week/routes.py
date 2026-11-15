@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from flask import Blueprint, flash, redirect, render_template, url_for
 
+from app.domain.clock import local_today
 from app.web.context import current_user_id, login_required, services
 
 week_bp = Blueprint("week", __name__, url_prefix="/week")
@@ -12,7 +13,7 @@ def _parse_week(value: str | None) -> date:
     try:
         return datetime.strptime(value or "", "%Y-%m-%d").date()
     except ValueError:
-        return date.today()
+        return local_today()
 
 
 @week_bp.route("/", defaults={"week": None})

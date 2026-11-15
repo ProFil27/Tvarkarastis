@@ -7,6 +7,7 @@ from app.application.errors import ValidationFailed
 from app.application.event_rows import ReviewRow, row_to_event, validate_row
 from app.application.ports import ScheduleRepository
 from app.application.validation import ChangeListener, ignore_changes
+from app.domain.clock import local_today
 from app.domain.entities import StudyEvent
 from app.domain.rules import SEMESTER_LENGTH_DAYS
 
@@ -16,7 +17,7 @@ class StudyEventService:
         self,
         schedules: ScheduleRepository,
         on_change: ChangeListener = ignore_changes,
-        today: Callable[[], date] = date.today,
+        today: Callable[[], date] = local_today,
     ):
         self._schedules = schedules
         self._on_change = on_change

@@ -1,23 +1,44 @@
-"""KSK: connecting the user's Google Calendar account and reporting its state (F-24, F-25, F-30).
+"""KSK: connecting the user's Google Calendar account, exporting the schedule and reporting the state
+(F-24..F-31).
 
 The service knows the calendar only through the CalendarProvider port (N-41, N-42). OAuth tokens are encrypted
-before they are stored and are never logged (N-43).
+before they are stored and are never logged (N-43). Only events whose Google id is stored in a link are ever
+changed or deleted (N-45); a record that already has a link is updated, never created again (F-29, N-32).
 """
 
 import hmac
 import logging
 import secrets
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Callable
 
+from app.application.calendar_events import study_event_body, work_shift_body
 from app.application.errors import CalendarError
-from app.application.ports import CalendarAccountRepository, CalendarProvider, TokenCipher
-from app.domain.entities import CalendarAccount, CalendarAccountStatus
+from app.application.ports import (
+    CalendarAccountRepository,
+    CalendarEventRepository,
+    CalendarProvider,
+    ScheduleRepository,
+    SyncOperationRepository,
+    TokenCipher,
+    WorkShiftRepository,
+)
+from app.domain.clock import local_now
+from app.domain.entities import (
+    CalendarAccount,
+    CalendarAccountStatus,
+    CalendarEventLink,
+    CalendarTokens,
+    SyncOperation,
+    SyncOperationType,
+    SyncStatus,
+)
 
 log = logging.getLogger(__name__)
 
 STATE_BYTES = 32  # 256 bits, more than the 128 required by N-44
+TOKEN_EXPIRY_MARGIN = timedelta(seconds=60)
 
 
 @dataclass(frozen=True)
@@ -30,16 +51,35 @@ class ConnectRequest:
 
 
 @dataclass(frozen=True)
+class SyncResult:
+    created: int = 0
+    updated: int = 0
+    deleted: int = 0
+
+
+@dataclass(frozen=True)
 class CalendarStatusReport:
     """What the calendar window shows (F-30)."""
 
     status: CalendarAccountStatus
     google_email: str | None = None
     connected_at: datetime | None = None
+    exported: bool = False  # a successful export has been made
+    last_success_at: datetime | None = None
+    last_operation: SyncOperation | None = None  # the most recent finished run, successful or not
+    last_error: SyncOperation | None = None  # set only when that run failed
 
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+class _Run:
+    """The OAuth tokens of one synchronisation run; they are refreshed at most when they expire or are rejected."""
+
+    def __init__(self, user_id: int, tokens: CalendarTokens):
+        self.user_id = user_id
+        self.tokens = tokens
 
 
 class CalendarSyncService:
@@ -48,13 +88,21 @@ class CalendarSyncService:
         provider: CalendarProvider,
         accounts: CalendarAccountRepository,
         cipher: TokenCipher,
-        now: Callable[[], datetime] = datetime.now,
+        links: CalendarEventRepository,
+        operations: SyncOperationRepository,
+        schedules: ScheduleRepository,
+        shifts: WorkShiftRepository,
+        now: Callable[[], datetime] = local_now,
         utc_now: Callable[[], datetime] = _utc_now,
     ):
         self._provider = provider
         self._accounts = accounts
         self._cipher = cipher
-        self._now = now  # local time, shown to the user (N-29)
+        self._links = links
+        self._operations = operations
+        self._schedules = schedules
+        self._shifts = shifts
+        self._now = now  # local time, shown to the user and sent to the calendar (N-29)
         self._utc_now = utc_now  # token expiry is kept in UTC
 
     # ------------------------------------------------------------------ connecting (F-24, F-25)
@@ -109,10 +157,144 @@ class CalendarSyncService:
             connected_at=now,
         )
 
+    # ------------------------------------------------------------------ export / update (F-26..F-29)
+
+    def export(self, user_id: int) -> SyncResult:
+        """Put the user's study events and work shifts into their Google Calendar (F-26, F-27).
+
+        Raises CalendarError when the account is not connected or the calendar service fails; the run is
+        recorded either way. Running it again never creates duplicates: records that already have a Google
+        event are updated instead (F-29).
+        """
+        return self._reconcile(user_id, SyncOperationType.EXPORT)
+
+    def _reconcile(self, user_id: int, operation_type: SyncOperationType) -> SyncResult:
+        account = self._connected_account(user_id)
+        operation_id = self._operations.start(user_id, operation_type, self._now())
+        created = updated = deleted = 0
+        try:
+            run = self._open_run(account)
+            events = self._schedules.list_study_events(user_id)
+            shifts = self._shifts.list_for_user(user_id)
+            links = self._links.list_links(user_id)
+            for_event = {link.study_event_id: link for link in links if link.study_event_id is not None}
+            for_shift = {link.work_shift_id: link for link in links if link.work_shift_id is not None}
+            today = self._now().date()
+
+            wanted = [
+                (study_event_body(event, today), for_event.get(event.id), event.updated_at, event.id, None)
+                for event in events
+            ] + [
+                (work_shift_body(shift), for_shift.get(shift.id), shift.updated_at, None, shift.id) for shift in shifts
+            ]
+            for body, link, changed_at, event_id, shift_id in wanted:
+                if body is None:  # a study event that never takes place inside its schedule's validity period
+                    continue
+                if link is None:
+                    google_id = self._call(run, lambda t, b=body: self._provider.create_event(t, b))
+                    self._links.add_link(user_id, event_id, shift_id, google_id, self._now())
+                    created += 1
+                elif changed_at is not None and changed_at > link.synced_at:
+                    if self._update_or_recreate(run, link, body):
+                        updated += 1
+                    else:
+                        created += 1
+
+            for link in links:
+                if link.is_orphan:  # the local record was removed: delete only the event this system created
+                    self._call(run, lambda t, g=link.google_event_id: self._provider.delete_event(t, g))
+                    self._links.remove_link(link.id)
+                    deleted += 1
+        except CalendarError as exc:
+            self._fail(account, operation_id, exc.code, str(exc), created, updated, deleted)
+            raise
+        except Exception as exc:  # noqa: BLE001 - never leave a run "in progress" or leak details to the user
+            log.exception("Unexpected calendar synchronisation error")
+            self._fail(account, operation_id, CalendarError.UNAVAILABLE, type(exc).__name__, created, updated, deleted)
+            raise CalendarError(CalendarError.UNAVAILABLE) from exc
+
+        self._operations.finish(operation_id, SyncStatus.SUCCESS, self._now(), created, updated, deleted)
+        return SyncResult(created, updated, deleted)
+
+    def _update_or_recreate(self, run: _Run, link: CalendarEventLink, body: dict) -> bool:
+        """Update the linked Google event; if the user deleted it in Google, create it again. True if updated."""
+        try:
+            self._call(run, lambda t: self._provider.update_event(t, link.google_event_id, body))
+        except CalendarError as exc:
+            if exc.code != CalendarError.NOT_FOUND:
+                raise
+            google_id = self._call(run, lambda t: self._provider.create_event(t, body))
+            self._links.replace_google_event(link.id, google_id, self._now())
+            return False
+        self._links.touch_link(link.id, self._now())
+        return True
+
+    def _fail(
+        self, account: CalendarAccount, operation_id: int, code: str, detail: str, created: int, updated: int, deleted: int
+    ) -> None:
+        if code == CalendarError.AUTH_EXPIRED:
+            self._accounts.set_status(account.user_id, CalendarAccountStatus.RECONNECT_REQUIRED)
+        self._operations.finish(operation_id, SyncStatus.ERROR, self._now(), created, updated, deleted, code, detail)
+
+    # ------------------------------------------------------------------ tokens (N-31, N-33, N-43)
+
+    def _connected_account(self, user_id: int) -> CalendarAccount:
+        account = self._accounts.get(user_id)
+        if account is None or account.status == CalendarAccountStatus.NOT_CONNECTED:
+            raise CalendarError(CalendarError.NOT_CONNECTED)
+        if account.status == CalendarAccountStatus.RECONNECT_REQUIRED:
+            raise CalendarError(CalendarError.AUTH_EXPIRED)
+        return account
+
+    def _open_run(self, account: CalendarAccount) -> _Run:
+        """Decrypt the stored tokens and make sure the access token is still valid."""
+        if not account.access_token_enc:
+            raise CalendarError(CalendarError.AUTH_EXPIRED)
+        tokens = CalendarTokens(
+            self._cipher.decrypt(account.access_token_enc),
+            self._cipher.decrypt(account.refresh_token_enc) if account.refresh_token_enc else None,
+            account.token_expires_at,
+            account.google_email,
+        )
+        run = _Run(account.user_id, tokens)
+        if tokens.expires_at is None or tokens.expires_at <= self._utc_now() + TOKEN_EXPIRY_MARGIN:
+            self._refresh(run)
+        return run
+
+    def _refresh(self, run: _Run) -> None:
+        refreshed = self._provider.refresh(run.tokens)
+        self._accounts.update_tokens(
+            run.user_id,
+            self._cipher.encrypt(refreshed.access_token),
+            self._cipher.encrypt(refreshed.refresh_token) if refreshed.refresh_token else None,
+            refreshed.expires_at,
+        )
+        run.tokens = refreshed
+
+    def _call(self, run: _Run, action: Callable[[CalendarTokens], object]):
+        """Run one calendar request; if the access token is rejected, refresh it once and try again."""
+        try:
+            return action(run.tokens)
+        except CalendarError as exc:
+            if exc.code != CalendarError.AUTH_EXPIRED:
+                raise
+        self._refresh(run)  # raises AUTH_EXPIRED if the refresh token no longer works
+        return action(run.tokens)
+
     # ------------------------------------------------------------------ state (F-30)
 
     def status(self, user_id: int) -> CalendarStatusReport:
         account = self._accounts.get(user_id)
         if account is None:
             return CalendarStatusReport(CalendarAccountStatus.NOT_CONNECTED)
-        return CalendarStatusReport(account.status, account.google_email, account.connected_at)
+        last = self._operations.last(user_id)
+        last_success = self._operations.last_success(user_id)
+        return CalendarStatusReport(
+            status=account.status,
+            google_email=account.google_email,
+            connected_at=account.connected_at,
+            exported=self._operations.has_export(user_id),
+            last_success_at=last_success.finished_at if last_success else None,
+            last_operation=last,
+            last_error=last if last is not None and last.status == SyncStatus.ERROR else None,
+        )

@@ -7,6 +7,7 @@ from datetime import date
 from typing import Callable
 
 from app.application.ports import ReminderSettingRepository, ScheduleRepository
+from app.domain.clock import local_today
 from app.domain.entities import Reminder
 from app.domain.reminder import SemesterStarts, current_period, in_reminder_window
 
@@ -19,7 +20,7 @@ class ReminderService:
         settings: ReminderSettingRepository,
         schedules: ScheduleRepository,
         semester_starts: SemesterStarts,
-        today: Callable[[], date] = date.today,
+        today: Callable[[], date] = local_today,
     ):
         self._settings = settings
         self._schedules = schedules

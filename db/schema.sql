@@ -21,6 +21,10 @@ CREATE TYPE reminder_type AS ENUM ('SEMESTRO_PRADZIA', 'MENESIO_PRADZIA');
 
 CREATE TYPE calendar_account_status AS ENUM ('PRIJUNGTA', 'NEPRIJUNGTA', 'REIKIA_PERPRISIJUNGTI');
 
+CREATE TYPE sync_operation_type AS ENUM ('EKSPORTAS', 'ATNAUJINIMAS');
+
+CREATE TYPE sync_status AS ENUM ('VYKDOMAS', 'SEKMINGAS', 'KLAIDA');
+
 CREATE TYPE notification_type AS ENUM ('KONFLIKTAS', 'SISTEMOS_KLAIDA', 'PRIMINIMAS', 'SINCH_KLAIDA');
 
 -- On which study weeks an event takes place: every week, only week 1 or only week 2
@@ -151,6 +155,38 @@ CREATE TABLE calendar_accounts (
     connected_at TIMESTAMP,
     status calendar_account_status NOT NULL DEFAULT 'NEPRIJUNGTA'
 );
+
+-- CalendarEvent: link between a study event / work shift and its Google event (prevents duplicates).
+-- It survives the deletion of the local record (both ids NULL = orphan), so the Google event can still be deleted.
+CREATE TABLE calendar_events (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    study_event_id INTEGER REFERENCES study_events(id) ON DELETE SET NULL,
+    work_shift_id INTEGER REFERENCES work_shifts(id) ON DELETE SET NULL,
+    google_event_id VARCHAR(1024) NOT NULL,
+    synced_at TIMESTAMP NOT NULL DEFAULT now(),
+    CONSTRAINT calendar_event_one_source CHECK (study_event_id IS NULL OR work_shift_id IS NULL),
+    CONSTRAINT calendar_event_unique_google_id UNIQUE (user_id, google_event_id)
+);
+CREATE UNIQUE INDEX idx_calendar_events_study_event ON calendar_events(study_event_id) WHERE study_event_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_calendar_events_work_shift ON calendar_events(work_shift_id) WHERE work_shift_id IS NOT NULL;
+CREATE INDEX idx_calendar_events_user_id ON calendar_events(user_id);
+
+-- SyncOperation: one export / update run and its result (KSK)
+CREATE TABLE sync_operations (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    operation_type sync_operation_type NOT NULL,
+    status sync_status NOT NULL DEFAULT 'VYKDOMAS',
+    started_at TIMESTAMP NOT NULL DEFAULT now(),
+    finished_at TIMESTAMP,
+    created_count INTEGER NOT NULL DEFAULT 0,
+    updated_count INTEGER NOT NULL DEFAULT 0,
+    deleted_count INTEGER NOT NULL DEFAULT 0,
+    error_code VARCHAR(40),
+    error_message TEXT
+);
+CREATE INDEX idx_sync_operations_user_id ON sync_operations(user_id);
 
 CREATE INDEX idx_schedules_user_id ON schedules(user_id);
 CREATE INDEX idx_study_events_schedule_id ON study_events(schedule_id);

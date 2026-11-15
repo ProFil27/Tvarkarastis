@@ -8,6 +8,7 @@ from app.application.ports import AnalysisResult, AuthorizationRequest, Recognit
 from app.domain.entities import (
     CalendarAccount,
     CalendarAccountStatus,
+    CalendarEventLink,
     CalendarTokens,
     Conflict,
     DetectedConflict,
@@ -18,6 +19,9 @@ from app.domain.entities import (
     ReminderSetting,
     StudyEvent,
     StudyEventType,
+    SyncOperation,
+    SyncOperationType,
+    SyncStatus,
     User,
     WeekPattern,
     WorkShift,
@@ -316,6 +320,8 @@ class FakeCalendarProvider:
         self.configured = configured
         self.errors = errors or {}
         self.calls: list[tuple] = []
+        self.events: dict[str, dict] = {}  # the events that exist in the user's Google calendar
+        self._next_event = 0
         self.tokens = CalendarTokens("access-1", "refresh-1", datetime(2099, 1, 1), "student@gmail.com")
 
     def is_configured(self):
@@ -339,3 +345,95 @@ class FakeCalendarProvider:
         self.calls.append(("refresh",))
         self._maybe_fail("refresh")
         return replace(tokens, access_token="access-2", expires_at=datetime(2099, 1, 2))
+
+    # -- an in-memory Google calendar: id -> event body
+    def create_event(self, tokens, body):
+        self.calls.append(("create_event", tokens.access_token))
+        self._maybe_fail("create_event")
+        self._next_event += 1
+        google_id = f"g{self._next_event}"
+        self.events[google_id] = body
+        return google_id
+
+    def update_event(self, tokens, google_event_id, body):
+        self.calls.append(("update_event", google_event_id))
+        self._maybe_fail("update_event")
+        if google_event_id not in self.events:
+            raise CalendarError(CalendarError.NOT_FOUND)
+        self.events[google_event_id] = body
+
+    def delete_event(self, tokens, google_event_id):
+        self.calls.append(("delete_event", google_event_id))
+        self._maybe_fail("delete_event")
+        self.events.pop(google_event_id, None)
+
+    def calls_named(self, name):
+        return [call for call in self.calls if call[0] == name]
+
+
+class FakeCalendarEventRepository:
+    """Links between local records and Google events; `unlink_study_event` mimics ON DELETE SET NULL."""
+
+    def __init__(self):
+        self.links: dict[int, CalendarEventLink] = {}
+        self._next_id = 0
+
+    def list_links(self, user_id):
+        return [link for link in self.links.values() if link.user_id == user_id]
+
+    def add_link(self, user_id, study_event_id, work_shift_id, google_event_id, synced_at):
+        self._next_id += 1
+        link = CalendarEventLink(self._next_id, user_id, study_event_id, work_shift_id, google_event_id, synced_at)
+        self.links[link.id] = link
+        return link
+
+    def touch_link(self, link_id, synced_at):
+        self.links[link_id] = replace(self.links[link_id], synced_at=synced_at)
+
+    def replace_google_event(self, link_id, google_event_id, synced_at):
+        self.links[link_id] = replace(self.links[link_id], google_event_id=google_event_id, synced_at=synced_at)
+
+    def remove_link(self, link_id):
+        del self.links[link_id]
+
+    def unlink_study_event(self, event_id):
+        for link in list(self.links.values()):
+            if link.study_event_id == event_id:
+                self.links[link.id] = replace(link, study_event_id=None)
+
+    def unlink_work_shift(self, shift_id):
+        for link in list(self.links.values()):
+            if link.work_shift_id == shift_id:
+                self.links[link.id] = replace(link, work_shift_id=None)
+
+
+class FakeSyncOperationRepository:
+    def __init__(self):
+        self.operations: list[SyncOperation] = []
+
+    def start(self, user_id, operation_type, started_at):
+        self.operations.append(SyncOperation(len(self.operations) + 1, user_id, operation_type,
+                                             SyncStatus.IN_PROGRESS, started_at))
+        return len(self.operations)
+
+    def finish(self, operation_id, status, finished_at, created, updated, deleted, error_code=None, error_message=None):
+        old = self.operations[operation_id - 1]
+        self.operations[operation_id - 1] = replace(
+            old, status=status, finished_at=finished_at, created_count=created, updated_count=updated,
+            deleted_count=deleted, error_code=error_code, error_message=error_message,
+        )
+
+    def _finished(self, user_id, only_success=False):
+        found = [o for o in self.operations if o.user_id == user_id and o.status != SyncStatus.IN_PROGRESS
+                 and (o.status == SyncStatus.SUCCESS or not only_success)]
+        return found[-1] if found else None
+
+    def last(self, user_id):
+        return self._finished(user_id)
+
+    def last_success(self, user_id):
+        return self._finished(user_id, only_success=True)
+
+    def has_export(self, user_id):
+        return any(o.user_id == user_id and o.operation_type == SyncOperationType.EXPORT
+                   and o.status == SyncStatus.SUCCESS for o in self.operations)

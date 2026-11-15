@@ -38,6 +38,17 @@ class CalendarAccountStatus(Enum):
     RECONNECT_REQUIRED = "REIKIA_PERPRISIJUNGTI"
 
 
+class SyncOperationType(Enum):
+    EXPORT = "EKSPORTAS"
+    UPDATE = "ATNAUJINIMAS"
+
+
+class SyncStatus(Enum):
+    IN_PROGRESS = "VYKDOMAS"
+    SUCCESS = "SEKMINGAS"
+    ERROR = "KLAIDA"
+
+
 class ReminderType(Enum):
     SEMESTER_START = "SEMESTRO_PRADZIA"
     MONTH_START = "MENESIO_PRADZIA"
@@ -180,3 +191,40 @@ class CalendarAccount:
     token_expires_at: datetime | None = None  # UTC
     consent_given_at: datetime | None = None  # local time
     connected_at: datetime | None = None  # local time
+
+
+@dataclass(frozen=True)
+class CalendarEventLink:
+    """Ties a study event or work shift to the Google event created for it (prevents duplicates, F-29).
+
+    When the local record is deleted both ids become None: the Google event is then an orphan that the next
+    synchronisation deletes. Only events with a stored link are ever changed or deleted (N-45).
+    """
+
+    id: int
+    user_id: int
+    study_event_id: int | None
+    work_shift_id: int | None
+    google_event_id: str
+    synced_at: datetime  # local time
+
+    @property
+    def is_orphan(self) -> bool:
+        return self.study_event_id is None and self.work_shift_id is None
+
+
+@dataclass(frozen=True)
+class SyncOperation:
+    """One export or update run and its result (F-27, F-30)."""
+
+    id: int
+    user_id: int
+    operation_type: SyncOperationType
+    status: SyncStatus
+    started_at: datetime
+    finished_at: datetime | None = None
+    created_count: int = 0
+    updated_count: int = 0
+    deleted_count: int = 0
+    error_code: str | None = None
+    error_message: str | None = None

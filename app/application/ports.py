@@ -13,6 +13,7 @@ from app.domain.entities import (
     AiRequestType,
     CalendarAccount,
     CalendarAccountStatus,
+    CalendarEventLink,
     CalendarTokens,
     Conflict,
     DetectedConflict,
@@ -23,6 +24,9 @@ from app.domain.entities import (
     ReminderSetting,
     ReminderType,
     StudyEvent,
+    SyncOperation,
+    SyncOperationType,
+    SyncStatus,
     User,
     WorkShift,
 )
@@ -234,4 +238,62 @@ class CalendarProvider(Protocol):
 
     def refresh(self, tokens: CalendarTokens) -> CalendarTokens:
         """Raises CalendarError (AUTH_EXPIRED when the refresh token no longer works, UNAVAILABLE)."""
+        ...
+
+    def create_event(self, tokens: CalendarTokens, body: dict) -> str:
+        """Create an event from a Google Calendar `Event` resource (JSON); returns its Google id.
+
+        Retries network errors, HTTP 5xx and 429 after 1, 2 and 4 seconds (N-31), then raises
+        CalendarError(UNAVAILABLE). Other errors: AUTH_EXPIRED, REJECTED.
+        """
+        ...
+
+    def update_event(self, tokens: CalendarTokens, google_event_id: str, body: dict) -> None:
+        """Replace an event. Raises CalendarError (NOT_FOUND if it no longer exists, plus those of create_event)."""
+        ...
+
+    def delete_event(self, tokens: CalendarTokens, google_event_id: str) -> None:
+        """Delete an event; an event that is already gone counts as deleted."""
+        ...
+
+
+class CalendarEventRepository(Protocol):
+    def list_links(self, user_id: int) -> list[CalendarEventLink]: ...
+
+    def add_link(
+        self, user_id: int, study_event_id: int | None, work_shift_id: int | None, google_event_id: str, synced_at: datetime
+    ) -> CalendarEventLink: ...
+
+    def touch_link(self, link_id: int, synced_at: datetime) -> None: ...
+
+    def replace_google_event(self, link_id: int, google_event_id: str, synced_at: datetime) -> None:
+        """Point an existing link at a newly created Google event."""
+        ...
+
+    def remove_link(self, link_id: int) -> None: ...
+
+
+class SyncOperationRepository(Protocol):
+    def start(self, user_id: int, operation_type: SyncOperationType, started_at: datetime) -> int: ...
+
+    def finish(
+        self,
+        operation_id: int,
+        status: SyncStatus,
+        finished_at: datetime,
+        created: int,
+        updated: int,
+        deleted: int,
+        error_code: str | None = None,
+        error_message: str | None = None,
+    ) -> None: ...
+
+    def last(self, user_id: int) -> SyncOperation | None:
+        """The most recent finished operation (successful or not)."""
+        ...
+
+    def last_success(self, user_id: int) -> SyncOperation | None: ...
+
+    def has_export(self, user_id: int) -> bool:
+        """Whether a successful export was made (updates only make sense after one)."""
         ...
