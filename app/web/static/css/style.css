@@ -111,14 +111,15 @@ body.auth{display:grid;grid-template-columns:1fr 1fr}
 .bar{height:10px;border-radius:5px;background:#fff;margin-top:12px;position:relative;width:340px;max-width:100%;border:1px solid #F3C5C5}
 .bar i{position:absolute;top:0;bottom:0;border-radius:5px}
 
-table.review th,table.review td{padding:12px 8px}
+table.review th,table.review td{padding:12px 5px}
 table.review th:first-child,table.review td:first-child{padding-left:14px}
-table.review td:nth-child(1) .cell{min-width:200px}
-table.review td:nth-child(2) .cell{min-width:118px}
-table.review td:nth-child(3) .cell{min-width:128px}
-table.review td:nth-child(4) .cell{min-width:150px}
-table.review td:nth-child(5) .cell,table.review td:nth-child(6) .cell{min-width:100px}
-table.review td:nth-child(7) .cell{min-width:90px}
+table.review td:nth-child(1) .cell{min-width:170px}
+table.review td:nth-child(2) .cell{min-width:112px}
+table.review td:nth-child(3) .cell{min-width:118px}
+table.review td:nth-child(4) .cell{min-width:128px}
+table.review td:nth-child(5) .cell,table.review td:nth-child(6) .cell{min-width:78px}
+table.review td:nth-child(7) .cell{min-width:84px}
+.tw{overflow-x:auto}
 table.review td:last-child{text-align:center}
 .period{display:flex;gap:16px;align-items:flex-start;margin-bottom:16px}
 .period .in{width:190px}

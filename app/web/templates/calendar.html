@@ -48,7 +48,9 @@
     <div class="card">
         <div class="row">
             <h2>Sinchronizavimas</h2>
-            {% if report.status.name != 'CONNECTED' %}
+            {% if report.status.name == 'RECONNECT_REQUIRED' %}
+                <span class="badge bad">● Reikia prisijungti iš naujo</span>
+            {% elif report.status.name != 'CONNECTED' %}
                 <span class="badge n">Neprijungta</span>
             {% elif not report.exported %}
                 <span class="badge n">Dar neeksportuota</span>
@@ -63,7 +65,9 @@
             <div>Paskutinė operacija<b>{{ operation_labels.get(report.last_operation.operation_type.name, '—') if report.last_operation else '—' }}</b></div>
             <div>Sukurta / atnaujinta / ištrinta<b>{% if report.last_operation %}{{ report.last_operation.created_count }} / {{ report.last_operation.updated_count }} / {{ report.last_operation.deleted_count }}{% else %}—{% endif %}</b></div>
         </div>
-        {% if report.status.name != 'CONNECTED' %}
+        {% if report.status.name == 'RECONNECT_REQUIRED' %}
+            <div class="hint" style="margin-top:14px">Prisijunkite prie Google Calendar iš naujo, kad sinchronizavimas vėl veiktų.</div>
+        {% elif report.status.name != 'CONNECTED' %}
             <div class="hint" style="margin-top:14px">Prijunkite Google Calendar paskyrą, kad galėtumėte eksportuoti tvarkaraštį.</div>
         {% endif %}
         <div style="margin-top:18px;display:flex;gap:12px">

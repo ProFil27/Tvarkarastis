@@ -54,9 +54,11 @@
         if (menu) { menu.remove(); menu = null; owner = null; }
     }
 
-    function openMenu(input) {
+    // `filter` is true while the user types: then only times that start with the typed digits are offered.
+    // On focus the whole list is shown and the time nearest to the current value is highlighted.
+    function openMenu(input, filter) {
         closeMenu();
-        var typed = input.value.replace(/\D/g, "");
+        var typed = filter ? input.value.replace(/\D/g, "") : "";
         var current = toMinutes(input.value);
         var items = [];
         for (var t = SUGGEST_FROM; t <= SUGGEST_TO; t += SUGGEST_STEP) {
@@ -97,7 +99,7 @@
     }
 
     document.addEventListener("focusin", function (event) {
-        if (event.target.matches("[data-time-input]")) { openMenu(event.target); }
+        if (event.target.matches("[data-time-input]")) { openMenu(event.target, false); }
     });
 
     document.addEventListener("input", function (event) {
@@ -105,7 +107,7 @@
         if (!input.matches || !input.matches("[data-time-input]")) { return; }
         input.value = liveFormat(input.value, event.inputType === "deleteContentBackward");
         markValidity(input);
-        openMenu(input);
+        openMenu(input, true);
     });
 
     document.addEventListener("keydown", function (event) {
