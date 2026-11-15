@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_time_field.html" import time_field %}
 {% block title %}Atpažintų duomenų peržiūra{% endblock %}
 {% block content %}
     <div class="head">
@@ -71,13 +72,11 @@
                             {% if row_errors.get('week_pattern') %}<div class="field-error">{{ row_errors['week_pattern'] }}</div>{% endif %}
                         </td>
                         <td>
-                            <input class="cell {{ 'invalid' if row_errors.get('start_time') }}" type="time"
-                                   name="start_time_{{ loop.index0 }}" value="{{ entry.start_time }}">
+                            {{ time_field('start_time_' ~ loop.index0, entry.start_time, 'cell', row_errors.get('start_time')) }}
                             {% if row_errors.get('start_time') %}<div class="field-error">{{ row_errors['start_time'] }}</div>{% endif %}
                         </td>
                         <td>
-                            <input class="cell {{ 'invalid' if row_errors.get('end_time') }}" type="time"
-                                   name="end_time_{{ loop.index0 }}" value="{{ entry.end_time }}">
+                            {{ time_field('end_time_' ~ loop.index0, entry.end_time, 'cell', row_errors.get('end_time')) }}
                             {% if row_errors.get('end_time') %}<div class="field-error">{{ row_errors['end_time'] }}</div>{% endif %}
                         </td>
                         <td>

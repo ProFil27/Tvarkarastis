@@ -1,0 +1,6 @@
+{# Text time input (HH:MM, 24 h) that replaces the native clock picker. Behaviour: static/js/time_field.js #}
+{% macro time_field(name, value='', css='in', invalid=False, id=None) -%}
+<input class="{{ css }} time-input {{ 'invalid' if invalid }}" type="text" name="{{ name }}"{% if id %} id="{{ id }}"{% endif %}
+       value="{{ value }}" placeholder="HH:MM" inputmode="numeric" maxlength="5" autocomplete="off"
+       pattern="([01][0-9]|2[0-3]):[0-5][0-9]" data-time-input {% if invalid %}aria-invalid="true"{% endif %}>
+{%- endmacro %}

@@ -123,3 +123,9 @@ table.review td:last-child{text-align:center}
 .period{display:flex;gap:16px;align-items:flex-start;margin-bottom:16px}
 .period .in{width:190px}
 .period .hint{align-self:center;margin-top:20px}
+
+.time-input{width:100%;min-width:76px;font-variant-numeric:tabular-nums}
+.time-input.invalid{border-color:var(--bad);background:var(--bad-l)}
+.time-menu{position:absolute;z-index:50;max-height:220px;overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:11px;box-shadow:0 12px 32px rgba(20,24,43,.18);padding:4px}
+.time-option{padding:7px 12px;border-radius:8px;cursor:pointer;font-variant-numeric:tabular-nums}
+.time-option:hover,.time-option.near{background:var(--pri-l);color:var(--pri)}
