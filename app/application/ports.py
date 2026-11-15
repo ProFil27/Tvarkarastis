@@ -6,11 +6,14 @@ can be replaced without touching business logic (N-18, N-19).
 """
 
 from dataclasses import dataclass
-from datetime import date, time
+from datetime import date, datetime, time
 from typing import Protocol
 
 from app.domain.entities import (
     AiRequestType,
+    CalendarAccount,
+    CalendarAccountStatus,
+    CalendarTokens,
     Conflict,
     DetectedConflict,
     Notification,
@@ -173,4 +176,62 @@ class ScheduleRecognizer(Protocol):
 class ConflictAnalyzer(Protocol):
     def analyze(self, events: list[StudyEvent], shifts: list[WorkShift]) -> AnalysisResult:
         """Find overlaps between events and shifts. Raises AnalysisFailed."""
+        ...
+
+
+@dataclass(frozen=True)
+class AuthorizationRequest:
+    """Where to send the user to approve access, and the PKCE verifier needed to finish the sign-in."""
+
+    url: str
+    code_verifier: str
+
+
+class TokenCipher(Protocol):
+    def encrypt(self, plain_text: str) -> str:
+        """Raises CalendarError(NOT_CONFIGURED) if no encryption key is configured."""
+        ...
+
+    def decrypt(self, cipher_text: str) -> str:
+        """Raises CalendarError(AUTH_EXPIRED) if the text cannot be decrypted (wrong key / damaged)."""
+        ...
+
+    @property
+    def available(self) -> bool: ...
+
+
+class CalendarAccountRepository(Protocol):
+    def get(self, user_id: int) -> CalendarAccount | None: ...
+
+    def save_connected(
+        self,
+        user_id: int,
+        google_email: str | None,
+        access_token_enc: str,
+        refresh_token_enc: str | None,
+        token_expires_at: datetime | None,
+        consent_given_at: datetime,
+        connected_at: datetime,
+    ) -> CalendarAccount: ...
+
+    def update_tokens(
+        self, user_id: int, access_token_enc: str, refresh_token_enc: str | None, token_expires_at: datetime | None
+    ) -> None: ...
+
+    def set_status(self, user_id: int, status: CalendarAccountStatus) -> None: ...
+
+
+class CalendarProvider(Protocol):
+    """The calendar service (IGoogleCalendar). Only the adapter for that service implements it (N-41, N-42)."""
+
+    def is_configured(self) -> bool: ...
+
+    def authorization_url(self, state: str) -> AuthorizationRequest: ...
+
+    def exchange_code(self, code: str, code_verifier: str) -> CalendarTokens:
+        """Raises CalendarError (INVALID_CODE, UNAVAILABLE)."""
+        ...
+
+    def refresh(self, tokens: CalendarTokens) -> CalendarTokens:
+        """Raises CalendarError (AUTH_EXPIRED when the refresh token no longer works, UNAVAILABLE)."""
         ...

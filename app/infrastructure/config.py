@@ -67,6 +67,15 @@ class Settings:
         self.claude_api_key = get("CLAUDE_API_KEY", "claude", "api_key", "")
         self.claude_model = get("CLAUDE_MODEL", "claude", "model", "claude-sonnet-4-5-20250929")
 
+        # Google Calendar (sprint 2). Optional: without them the app runs and the calendar window explains
+        # that the integration is not configured.
+        self.google_client_id = get("GOOGLE_CLIENT_ID", "google", "client_id", "")
+        self.google_client_secret = get("GOOGLE_CLIENT_SECRET", "google", "client_secret", "")
+        self.google_redirect_uri = get(
+            "GOOGLE_REDIRECT_URI", "google", "redirect_uri", "http://127.0.0.1:5000/calendar/callback"
+        )
+        self.token_encryption_key = get("TOKEN_ENCRYPTION_KEY", "google", "token_encryption_key", "")
+
         self.semester_start_dates = _parse_semester_starts(
             get("SEMESTER_START_DATES", "reminders", "semester_start_dates", "09-01,02-01")
         )

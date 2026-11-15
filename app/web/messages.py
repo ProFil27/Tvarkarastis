@@ -35,6 +35,25 @@ LOGIN_FAILED = "Neteisingas el. paštas arba slaptažodis."
 RECOGNITION_FAILED = "Nepavyko atpažinti tvarkaraščio. Bandykite įkelti failą iš naujo."
 
 
+_CALENDAR_MESSAGES = {
+    "NOT_CONFIGURED": "Google Calendar nesukonfigūruotas. Kreipkitės į sistemos administratorių.",
+    "CONSENT_REQUIRED": "Prieš prijungdami kalendorių patvirtinkite sutikimą siųsti duomenis į Google.",
+    "NOT_CONNECTED": "Google Calendar neprijungtas. Pirmiausia prijunkite paskyrą.",
+    "ACCESS_DENIED": "Prieiga nepatvirtinta. Kalendorius neprijungtas.",
+    "INVALID_STATE": "Neteisingas užklausos kodas. Bandykite prijungti kalendorių dar kartą.",
+    "INVALID_CODE": "Neteisingas užklausos kodas. Bandykite prijungti kalendorių dar kartą.",
+    "UNAVAILABLE": "Kalendoriaus tiekėjas nepasiekiamas. Bandykite dar kartą.",
+    "AUTH_EXPIRED": "Prisijunkite prie Google Calendar iš naujo.",
+    "NOT_FOUND": "Kalendoriaus įvykis nerastas. Bandykite sinchronizuoti dar kartą.",
+    "REJECTED": "Kalendoriaus tiekėjas atmetė užklausą. Bandykite dar kartą.",
+}
+
+
+def calendar_error(code: str) -> str:
+    """Lithuanian text (cause and next step) for a CalendarError code (F-25, F-31)."""
+    return _CALENDAR_MESSAGES.get(code, _CALENDAR_MESSAGES["UNAVAILABLE"])
+
+
 def translate(errors: dict[str, str]) -> dict[str, str]:
     """Map {field: code} to {field: Lithuanian message}."""
     return {field: _MESSAGES.get((field, code), code) for field, code in errors.items()}

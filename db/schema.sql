@@ -19,6 +19,8 @@ CREATE TYPE ai_request_type AS ENUM ('ATPAZINIMAS', 'ANALIZE');
 
 CREATE TYPE reminder_type AS ENUM ('SEMESTRO_PRADZIA', 'MENESIO_PRADZIA');
 
+CREATE TYPE calendar_account_status AS ENUM ('PRIJUNGTA', 'NEPRIJUNGTA', 'REIKIA_PERPRISIJUNGTI');
+
 CREATE TYPE notification_type AS ENUM ('KONFLIKTAS', 'SISTEMOS_KLAIDA', 'PRIMINIMAS', 'SINCH_KLAIDA');
 
 -- On which study weeks an event takes place: every week, only week 1 or only week 2
@@ -136,6 +138,18 @@ CREATE TABLE reminder_settings (
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
     closed_period_start DATE,
     closed_period_type reminder_type
+);
+
+-- CalendarAccount: the user's Google Calendar account; tokens are encrypted (KSK)
+CREATE TABLE calendar_accounts (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    google_email VARCHAR(255),
+    access_token_enc TEXT,
+    refresh_token_enc TEXT,
+    token_expires_at TIMESTAMP,  -- UTC
+    consent_given_at TIMESTAMP,
+    connected_at TIMESTAMP,
+    status calendar_account_status NOT NULL DEFAULT 'NEPRIJUNGTA'
 );
 
 CREATE INDEX idx_schedules_user_id ON schedules(user_id);

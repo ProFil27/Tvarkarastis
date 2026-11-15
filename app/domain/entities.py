@@ -32,6 +32,12 @@ class PdfStatus(Enum):
     FAILED = "KLAIDA"
 
 
+class CalendarAccountStatus(Enum):
+    CONNECTED = "PRIJUNGTA"
+    NOT_CONNECTED = "NEPRIJUNGTA"
+    RECONNECT_REQUIRED = "REIKIA_PERPRISIJUNGTI"
+
+
 class ReminderType(Enum):
     SEMESTER_START = "SEMESTRO_PRADZIA"
     MONTH_START = "MENESIO_PRADZIA"
@@ -147,3 +153,30 @@ class Reminder:
     period_start: date
     reminder_type: ReminderType
     text: str
+
+
+@dataclass(frozen=True)
+class CalendarTokens:
+    """OAuth tokens in plain text. They live only in memory; the database holds them encrypted (N-43).
+
+    `expires_at` is the access token's expiry in UTC (naive datetime).
+    """
+
+    access_token: str
+    refresh_token: str | None
+    expires_at: datetime | None
+    email: str | None = None
+
+
+@dataclass(frozen=True)
+class CalendarAccount:
+    """The user's connected Google Calendar account (stored tokens are encrypted)."""
+
+    user_id: int
+    status: CalendarAccountStatus
+    google_email: str | None = None
+    access_token_enc: str | None = None
+    refresh_token_enc: str | None = None
+    token_expires_at: datetime | None = None  # UTC
+    consent_given_at: datetime | None = None  # local time
+    connected_at: datetime | None = None  # local time

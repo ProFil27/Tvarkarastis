@@ -14,6 +14,7 @@
             <a class="tab {{ 'on' if request.blueprint in ('week', 'schedule') }}" href="{{ url_for('week.view') }}">Tvarkaraštis</a>
             <a class="tab {{ 'on' if request.blueprint == 'lectures' }}" href="{{ url_for('lectures.list_events') }}">Paskaitos</a>
             <a class="tab {{ 'on' if request.blueprint == 'work_shifts' }}" href="{{ url_for('work_shifts.list_shifts') }}">Darbo valandos</a>
+            <a class="tab {{ 'on' if request.blueprint == 'calendar' }}" href="{{ url_for('calendar.view') }}">Kalendorius</a>
         </div>
         <div class="user">
             <div class="avatar">{{ session.get('user_name')|initials }}</div>

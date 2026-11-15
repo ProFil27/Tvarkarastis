@@ -3,9 +3,12 @@
 from dataclasses import replace
 from datetime import date, datetime, time
 
-from app.application.errors import AnalysisFailed, RecognitionFailed
-from app.application.ports import AnalysisResult, RecognitionResult
+from app.application.errors import AnalysisFailed, CalendarError, RecognitionFailed
+from app.application.ports import AnalysisResult, AuthorizationRequest, RecognitionResult
 from app.domain.entities import (
+    CalendarAccount,
+    CalendarAccountStatus,
+    CalendarTokens,
     Conflict,
     DetectedConflict,
     Notification,
@@ -258,3 +261,81 @@ class FakeAnalyzer:
         if self.fail:
             raise AnalysisFailed("Failed", 3)
         return AnalysisResult(list(self.detected), 1)
+
+
+class FakeTokenCipher:
+    """Reversible stand-in for the Fernet cipher; ciphertext is recognisable in assertions."""
+
+    def __init__(self, available=True):
+        self._available = available
+
+    @property
+    def available(self):
+        return self._available
+
+    def encrypt(self, plain_text):
+        if not self._available:
+            raise CalendarError(CalendarError.NOT_CONFIGURED)
+        return "enc:" + plain_text
+
+    def decrypt(self, cipher_text):
+        if not cipher_text.startswith("enc:"):
+            raise CalendarError(CalendarError.AUTH_EXPIRED)
+        return cipher_text[len("enc:"):]
+
+
+class FakeCalendarAccountRepository:
+    def __init__(self):
+        self.accounts: dict[int, CalendarAccount] = {}
+
+    def get(self, user_id):
+        return self.accounts.get(user_id)
+
+    def save_connected(self, user_id, google_email, access_token_enc, refresh_token_enc, token_expires_at,
+                       consent_given_at, connected_at):
+        account = CalendarAccount(user_id, CalendarAccountStatus.CONNECTED, google_email, access_token_enc,
+                                  refresh_token_enc, token_expires_at, consent_given_at, connected_at)
+        self.accounts[user_id] = account
+        return account
+
+    def update_tokens(self, user_id, access_token_enc, refresh_token_enc, token_expires_at):
+        old = self.accounts[user_id]
+        self.accounts[user_id] = replace(
+            old, access_token_enc=access_token_enc, token_expires_at=token_expires_at,
+            refresh_token_enc=refresh_token_enc or old.refresh_token_enc,
+        )
+
+    def set_status(self, user_id, status):
+        self.accounts[user_id] = replace(self.accounts[user_id], status=status)
+
+
+class FakeCalendarProvider:
+    """Records what the sync does; `errors` maps a method name to the CalendarError it should raise."""
+
+    def __init__(self, configured=True, errors=None):
+        self.configured = configured
+        self.errors = errors or {}
+        self.calls: list[tuple] = []
+        self.tokens = CalendarTokens("access-1", "refresh-1", datetime(2099, 1, 1), "student@gmail.com")
+
+    def is_configured(self):
+        return self.configured
+
+    def _maybe_fail(self, method):
+        error = self.errors.get(method)
+        if error is not None:
+            raise error
+
+    def authorization_url(self, state):
+        self.calls.append(("authorization_url", state))
+        return AuthorizationRequest(f"https://accounts.example.com/auth?state={state}", "verifier-1")
+
+    def exchange_code(self, code, code_verifier):
+        self.calls.append(("exchange_code", code, code_verifier))
+        self._maybe_fail("exchange_code")
+        return self.tokens
+
+    def refresh(self, tokens):
+        self.calls.append(("refresh",))
+        self._maybe_fail("refresh")
+        return replace(tokens, access_token="access-2", expires_at=datetime(2099, 1, 2))

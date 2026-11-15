@@ -27,10 +27,12 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         plural_lt=filters.plural_lt,
         event_type_label=filters.event_type_label,
         week_pattern_label=filters.week_pattern_label,
+        local_datetime=filters.local_datetime,
         timeline=filters.timeline,
     )
 
     from app.web.auth.routes import auth_bp
+    from app.web.calendar.routes import calendar_bp
     from app.web.home import home_bp
     from app.web.reminders.routes import reminders_bp
     from app.web.schedule.routes import schedule_bp
@@ -38,7 +40,7 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     from app.web.week.routes import week_bp
     from app.web.work_shifts.routes import work_shifts_bp
 
-    for blueprint in (home_bp, auth_bp, schedule_bp, study_events_bp, work_shifts_bp, week_bp, reminders_bp):
+    for blueprint in (home_bp, auth_bp, schedule_bp, study_events_bp, work_shifts_bp, week_bp, reminders_bp, calendar_bp):
         app.register_blueprint(blueprint)
 
     @app.context_processor

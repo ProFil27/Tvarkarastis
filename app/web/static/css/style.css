@@ -142,3 +142,9 @@ table.review td:last-child{text-align:center}
 .remind{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 18px;background:var(--pri-l);border:1px solid #C7CCF5;border-radius:12px;color:var(--pri);margin-bottom:20px}
 .remind form{display:inline;margin:0}
 .consent.replace{background:#F1F3FA;color:var(--ink);margin-top:-8px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
+.stat div{border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.stat b{display:block;font-size:20px;margin-top:4px}
+.notice-warn{background:var(--warn-l);color:#7A4A0B;border-radius:12px;padding:12px 16px;margin:16px 0}
+.card.error{border-color:#F3C5C5}

@@ -93,6 +93,13 @@ INSERT INTO reminder_settings (user_id, enabled, closed_period_start, closed_per
     (2, FALSE, NULL, NULL),
     (3, TRUE, '2026-09-01', 'SEMESTRO_PRADZIA');
 
+-- Demo accounts: the stored tokens are placeholders, not real credentials. The application treats tokens it cannot
+-- decrypt as expired and asks the user to connect again.
+INSERT INTO calendar_accounts (user_id, google_email, access_token_enc, refresh_token_enc, token_expires_at, consent_given_at, connected_at, status) VALUES
+    (1, 'jonas.jonaitis@gmail.com', 'demo-not-a-real-token', 'demo-not-a-real-token', '2026-11-14 11:12', '2026-11-14 10:12', '2026-11-14 10:12', 'PRIJUNGTA'),
+    (2, 'ona.onaite@gmail.com', 'demo-not-a-real-token', 'demo-not-a-real-token', '2026-11-01 09:00', '2026-10-30 09:00', '2026-10-30 09:00', 'REIKIA_PERPRISIJUNGTI'),
+    (3, NULL, NULL, NULL, NULL, NULL, NULL, 'NEPRIJUNGTA');
+
 -- Keep the serial sequences ahead of the explicit ids above.
 SELECT setval(pg_get_serial_sequence('users', 'id'), 3);
 SELECT setval(pg_get_serial_sequence('pdf_documents', 'id'), 4);

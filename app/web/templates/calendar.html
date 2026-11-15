@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Kalendorius{% endblock %}
+{% block content %}
+    <div class="head">
+        <div>
+            <h1>Google Calendar</h1>
+            <div class="sub">Eksportuokite suvestą tvarkaraštį į savo kalendorių ir sekite sinchronizavimo būseną</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="row">
+            <div>
+                <h2>Paskyra</h2>
+                {% if report.status.name == 'CONNECTED' %}
+                    <div class="sub">{{ report.google_email or 'Google paskyra' }}{% if report.connected_at %} · prijungta {{ report.connected_at|local_datetime }}{% endif %}</div>
+                {% elif report.status.name == 'RECONNECT_REQUIRED' %}
+                    <div class="sub">Prisijunkite prie Google Calendar iš naujo.</div>
+                {% else %}
+                    <div class="sub">Paskyra neprijungta.</div>
+                {% endif %}
+            </div>
+            {% if report.status.name == 'CONNECTED' %}
+                <span class="badge ok">● Prijungta</span>
+            {% elif report.status.name == 'RECONNECT_REQUIRED' %}
+                <span class="badge bad">● Reikia prisijungti iš naujo</span>
+            {% else %}
+                <span class="badge n">● Neprijungta</span>
+            {% endif %}
+        </div>
+
+        {% if not available %}
+            <div class="notice-warn">Google Calendar integracija nesukonfigūruota (trūksta GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET ar TOKEN_ENCRYPTION_KEY).</div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('calendar.connect') }}">
+            <label class="consent">
+                <input type="checkbox" name="consent" {% if report.status.name == 'CONNECTED' %}checked{% endif %}>
+                <span>Sutinku, kad dalykas, įvykio tipas, laikas, auditorija ir darbovietė būtų siunčiami į Google Calendar.</span>
+            </label>
+            <div class="hint" style="margin:-6px 0 14px">Sistema prašo tik prieigos prie kalendoriaus įvykių ir el. pašto adreso; kitų jūsų kalendoriaus įvykių neskaito.</div>
+            <button type="submit" class="btn {{ 's' if report.status.name == 'CONNECTED' else 'p' }}">
+                {{ 'Prijungti iš naujo' if report.status.name == 'CONNECTED' else 'Prijungti Google Calendar' }}
+            </button>
+        </form>
+    </div>
+
+    <div class="card">
+        <form method="post" action="{{ url_for('calendar.toggle_reminders') }}" class="row">
+            <div>
+                <h2>Priminimai</h2>
+                <div class="sub">Priminimas įkelti atnaujintus tvarkaraščius semestro ir mėnesio pradžioje</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px">
+                <span class="badge {{ 'ok' if reminders_enabled else 'n' }}">{{ 'Įjungta' if reminders_enabled else 'Išjungta' }}</span>
+                {% if reminders_enabled %}
+                    <button type="submit" class="btn s btn-sm">Išjungti</button>
+                {% else %}
+                    <input type="hidden" name="enabled" value="on">
+                    <button type="submit" class="btn s btn-sm">Įjungti</button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+{% endblock %}

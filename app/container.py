@@ -8,6 +8,7 @@ this file and the adapters, not the services (N-19).
 from dataclasses import dataclass
 
 from app.application.auth_service import AuthService
+from app.application.calendar_sync_service import CalendarSyncService
 from app.application.change_notifier import ChangeNotifier
 from app.application.conflict_service import ConflictService
 from app.application.reminder_service import ReminderService
@@ -19,9 +20,11 @@ from app.infrastructure.ai.claude_client import ClaudeClient
 from app.infrastructure.ai.gemini_client import GeminiClient
 from app.infrastructure.ai.gemini_conflict_analyzer import ConflictAnalyzer
 from app.infrastructure.ai.gemini_schedule_recognizer import ScheduleRecognizer
+from app.infrastructure.calendar.google_calendar_client import GoogleCalendarClient
 from app.infrastructure.config import Settings
 from app.infrastructure.database import Database
 from app.infrastructure.persistence.ai_request_log import PostgresAiRequestLog
+from app.infrastructure.persistence.calendar_account_repository import PostgresCalendarAccountRepository
 from app.infrastructure.persistence.conflict_repository import PostgresConflictRepository
 from app.infrastructure.persistence.notification_repository import PostgresNotificationRepository
 from app.infrastructure.persistence.pdf_document_repository import PostgresPdfDocumentRepository
@@ -29,7 +32,7 @@ from app.infrastructure.persistence.reminder_repository import PostgresReminderS
 from app.infrastructure.persistence.schedule_repository import PostgresScheduleRepository
 from app.infrastructure.persistence.user_repository import PostgresUserRepository
 from app.infrastructure.persistence.work_shift_repository import PostgresWorkShiftRepository
-from app.infrastructure.security import WerkzeugPasswordHasher
+from app.infrastructure.security import FernetTokenCipher, WerkzeugPasswordHasher
 
 
 @dataclass(frozen=True)
@@ -43,6 +46,7 @@ class Services:
     conflicts: ConflictService | None = None
     week_view: WeekViewService | None = None
     reminders: ReminderService | None = None
+    calendar: CalendarSyncService | None = None
 
 
 def build_services(settings: Settings) -> Services:
@@ -75,6 +79,12 @@ def build_services(settings: Settings) -> Services:
 
     reminders = ReminderService(PostgresReminderSettingRepository(database), schedules, settings.semester_start_dates)
 
+    calendar = CalendarSyncService(
+        GoogleCalendarClient(settings.google_client_id, settings.google_client_secret, settings.google_redirect_uri),
+        PostgresCalendarAccountRepository(database),
+        FernetTokenCipher(settings.token_encryption_key),
+    )
+
     return Services(
         auth=auth,
         schedule_import=schedule_import,
@@ -83,4 +93,5 @@ def build_services(settings: Settings) -> Services:
         conflicts=conflicts,
         week_view=week_view,
         reminders=reminders,
+        calendar=calendar,
     )

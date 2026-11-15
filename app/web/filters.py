@@ -37,6 +37,11 @@ def event_type_label(event_type: StudyEventType) -> str:
     return _EVENT_TYPE_LABELS[event_type]
 
 
+def local_datetime(value) -> str:
+    """YYYY-MM-DD HH:MM in local time (N-29)."""
+    return value.strftime("%Y-%m-%d %H:%M") if value else "—"
+
+
 def week_pattern_label(pattern: WeekPattern) -> str:
     return _WEEK_PATTERN_LABELS[pattern]
 
