@@ -4,7 +4,12 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Callable
 
-from app.application.errors import RecognitionFailed, RowsValidationFailed, ValidationFailed
+from app.application.errors import (
+    RecognitionFailed,
+    ReplaceConfirmationRequired,
+    RowsValidationFailed,
+    ValidationFailed,
+)
 from app.application.event_rows import ReviewRow, row_to_event, validate_row
 from app.application.ports import (
     AiRequestLog,
@@ -43,15 +48,16 @@ class ScheduleImportService:
         self._today = today
 
     def upload_and_recognize(
-        self, user_id: int, filename: str, content: bytes, consent_given: bool
+        self, user_id: int, filename: str, content: bytes, consent_given: bool, replace_existing: bool = False
     ) -> RecognizedUpload:
         """Validate the file, run AI recognition and return rows for review.
 
+        `replace_existing` is remembered with the PDF; the current schedule is not touched here (F-22).
         Raises ValidationFailed (field "file") or RecognitionFailed.
         """
         self._validate_upload(filename, content, consent_given)
 
-        pdf_document = self._pdf_documents.add(user_id, filename)
+        pdf_document = self._pdf_documents.add(user_id, filename, replace_existing)
         request_id = self._ai_log.start(user_id, AiRequestType.RECOGNITION, pdf_document.id)
         try:
             result = self._recognizer.recognize(content)
@@ -74,12 +80,22 @@ class ScheduleImportService:
         return [validate_row(row) for row in rows]
 
     def confirm(
-        self, user_id: int, pdf_document_id: int, rows: list[ReviewRow], valid_from: str = "", valid_to: str = ""
+        self,
+        user_id: int,
+        pdf_document_id: int,
+        rows: list[ReviewRow],
+        valid_from: str = "",
+        valid_to: str = "",
+        replace_confirmed: bool = False,
     ) -> int:
         """Persist the schedule only after the user confirmed it (F-08, N-24).
 
         `valid_from` / `valid_to` ("YYYY-MM-DD") are the schedule's validity period; when both are empty
         the schedule is valid from today for one semester.
+
+        If the PDF was uploaded with "replace the existing schedule", the old schedule is removed together with
+        saving the new one, but only once the user confirmed it (`replace_confirmed`); before that
+        ReplaceConfirmationRequired(count) is raised and nothing changes (F-23).
         """
         errors = self.validate_rows(rows)
         if any(errors):
@@ -93,7 +109,12 @@ class ScheduleImportService:
         else:
             today = self._today()
             period = (today, today + timedelta(days=SEMESTER_LENGTH_DAYS))
-        schedule_id = self._schedules.add(
+
+        replacing = self._is_replacing(user_id, pdf_document_id)
+        if replacing and not replace_confirmed:
+            raise ReplaceConfirmationRequired(replacing)
+        save = self._schedules.replace_all if replacing else self._schedules.add
+        schedule_id = save(
             user_id=user_id,
             pdf_document_id=pdf_document_id,
             valid_from=period[0],
@@ -103,6 +124,13 @@ class ScheduleImportService:
         self._pdf_documents.set_status(pdf_document_id, PdfStatus.CONFIRMED)
         self._on_schedule_saved(user_id)
         return schedule_id
+
+    def _is_replacing(self, user_id: int, pdf_document_id: int) -> int:
+        """Number of existing events that would be removed; 0 if the PDF does not replace anything."""
+        document = self._pdf_documents.get(pdf_document_id)
+        if document is None or document.user_id != user_id or not document.replace_existing:
+            return 0
+        return self._schedules.count_events(user_id)
 
     @staticmethod
     def validate_period(valid_from: str, valid_to: str) -> dict[str, str]:

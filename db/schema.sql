@@ -40,6 +40,7 @@ CREATE TABLE pdf_documents (
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     filename VARCHAR(255) NOT NULL,
     status pdf_status NOT NULL DEFAULT 'IKELTAS',
+    replace_existing BOOLEAN NOT NULL DEFAULT FALSE,
     uploaded_at TIMESTAMP NOT NULL DEFAULT now()
 );
 

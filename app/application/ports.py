@@ -52,7 +52,9 @@ class UserRepository(Protocol):
 
 
 class PdfDocumentRepository(Protocol):
-    def add(self, user_id: int, filename: str) -> PdfDocument: ...
+    def add(self, user_id: int, filename: str, replace_existing: bool = False) -> PdfDocument: ...
+
+    def get(self, pdf_document_id: int) -> PdfDocument | None: ...
 
     def set_status(self, pdf_document_id: int, status: PdfStatus) -> None: ...
 
@@ -66,6 +68,16 @@ class ScheduleRepository(Protocol):
         self, user_id: int, week_start: date | None = None, week_end: date | None = None
     ) -> list[StudyEvent]:
         """All study events of the user; if a week is given, only schedules valid in that week."""
+        ...
+
+    def count_events(self, user_id: int) -> int:
+        """Number of study events in all of the user's schedules."""
+        ...
+
+    def replace_all(
+        self, user_id: int, pdf_document_id: int | None, valid_from: date, valid_to: date, events: list[StudyEvent]
+    ) -> int:
+        """In one transaction: remove all of the user's schedules and save the new one (F-23, DPK-10)."""
         ...
 
     def last_schedule_date(self, user_id: int) -> date | None:

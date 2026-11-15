@@ -47,10 +47,13 @@ class FakePdfDocumentRepository:
     def __init__(self):
         self.documents: dict[int, PdfDocument] = {}
 
-    def add(self, user_id, filename):
-        document = PdfDocument(len(self.documents) + 1, user_id, filename, PdfStatus.UPLOADED)
+    def add(self, user_id, filename, replace_existing=False):
+        document = PdfDocument(len(self.documents) + 1, user_id, filename, PdfStatus.UPLOADED, replace_existing)
         self.documents[document.id] = document
         return document
+
+    def get(self, pdf_document_id):
+        return self.documents.get(pdf_document_id)
 
     def set_status(self, pdf_document_id, status):
         self.documents[pdf_document_id] = replace(self.documents[pdf_document_id], status=status)
@@ -60,6 +63,7 @@ class FakeScheduleRepository:
     def __init__(self):
         self.events: dict[int, list[StudyEvent]] = {}
         self.saved_schedules: list[dict] = []
+        self.replaced: list[int] = []  # users whose old schedule was removed by replace_all
         self.last_upload: dict[int, date] = {}  # date of the user's last saved schedule (tests set it)
         self._next_id = 0
 
@@ -71,6 +75,14 @@ class FakeScheduleRepository:
 
     def list_study_events(self, user_id, week_start=None, week_end=None):
         return list(self.events.get(user_id, []))
+
+    def count_events(self, user_id):
+        return len(self.events.get(user_id, []))
+
+    def replace_all(self, user_id, pdf_document_id, valid_from, valid_to, events):
+        self.events[user_id] = []
+        self.replaced.append(user_id)
+        return self.add(user_id, pdf_document_id, valid_from, valid_to, events)
 
     def last_schedule_date(self, user_id):
         return self.last_upload.get(user_id)

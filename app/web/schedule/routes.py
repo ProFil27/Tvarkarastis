@@ -1,6 +1,11 @@
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
-from app.application.errors import RecognitionFailed, RowsValidationFailed, ValidationFailed
+from app.application.errors import (
+    RecognitionFailed,
+    ReplaceConfirmationRequired,
+    RowsValidationFailed,
+    ValidationFailed,
+)
 from app.application.schedule_import_service import ReviewRow
 from app.domain.entities import StudyEventType, WeekPattern
 from app.domain.weekday import Weekday
@@ -57,7 +62,11 @@ def upload():
 
     try:
         result = services().schedule_import.upload_and_recognize(
-            current_user_id(), pdf_file.filename, pdf_file.read(), request.form.get("ai_consent") == "on"
+            current_user_id(),
+            pdf_file.filename,
+            pdf_file.read(),
+            request.form.get("ai_consent") == "on",
+            request.form.get("replace_existing") == "on",
         )
     except ValidationFailed as exc:
         return render_template("upload.html", error=messages.translate(exc.errors)["file"])
@@ -80,6 +89,22 @@ def review():
     return _render_review(rows, [{} for _ in rows], session.get(_PENDING_PERIOD, {}))
 
 
+def _rows_from_form() -> list[ReviewRow]:
+    return [
+        ReviewRow(
+            subject=request.form.get(f"subject_{i}", ""),
+            event_type=request.form.get(f"event_type_{i}", ""),
+            day_of_week=request.form.get(f"day_of_week_{i}", ""),
+            start_time=request.form.get(f"start_time_{i}", ""),
+            end_time=request.form.get(f"end_time_{i}", ""),
+            room=request.form.get(f"room_{i}", ""),
+            is_mandatory=request.form.get(f"is_mandatory_{i}") == "on",
+            week_pattern=request.form.get(f"week_pattern_{i}", WeekPattern.EVERY_WEEK.value),
+        )
+        for i in range(int(request.form.get("row_count", 0)))
+    ]
+
+
 @schedule_bp.route("/review", methods=["POST"])
 @login_required
 def submit_review():
@@ -94,26 +119,31 @@ def submit_review():
         flash("Atpažinti duomenys atmesti.", "success")
         return redirect(url_for("schedule.upload"))
 
-    rows = [
-        ReviewRow(
-            subject=request.form.get(f"subject_{i}", ""),
-            event_type=request.form.get(f"event_type_{i}", ""),
-            day_of_week=request.form.get(f"day_of_week_{i}", ""),
-            start_time=request.form.get(f"start_time_{i}", ""),
-            end_time=request.form.get(f"end_time_{i}", ""),
-            room=request.form.get(f"room_{i}", ""),
-            is_mandatory=request.form.get(f"is_mandatory_{i}") == "on",
-            week_pattern=request.form.get(f"week_pattern_{i}", WeekPattern.EVERY_WEEK.value),
-        )
-        for i in range(int(request.form.get("row_count", 0)))
-    ]
+    rows = _rows_from_form()
     period = {
         "valid_from": request.form.get("valid_from", "").strip(),
         "valid_to": request.form.get("valid_to", "").strip(),
     }
 
+    if request.form.get("action") == "cancel_replace":
+        # Keep the reviewed rows, leave the old schedule untouched.
+        session[_PENDING_ROWS] = [row.to_dict() for row in rows]
+        session[_PENDING_PERIOD] = period
+        flash("Senasis tvarkaraštis nepakeistas.", "success")
+        return redirect(url_for("schedule.review"))
+
     try:
-        services().schedule_import.confirm(current_user_id(), pdf_document_id, rows, **period)
+        services().schedule_import.confirm(
+            current_user_id(),
+            pdf_document_id,
+            rows,
+            **period,
+            replace_confirmed=request.form.get("action") == "confirm_replace",
+        )
+    except ReplaceConfirmationRequired as exc:
+        return render_template(
+            "replace_confirm.html", rows=[row.to_dict() for row in rows], period=period, count=exc.event_count
+        )
     except RowsValidationFailed as exc:
         return _render_review([row.to_dict() for row in rows], [messages.translate(e) for e in exc.errors], period)
     except ValidationFailed as exc:

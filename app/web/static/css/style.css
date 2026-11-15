@@ -141,3 +141,4 @@ table.review td:last-child{text-align:center}
 .form-actions .btn{height:46px}
 .remind{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 18px;background:var(--pri-l);border:1px solid #C7CCF5;border-radius:12px;color:var(--pri);margin-bottom:20px}
 .remind form{display:inline;margin:0}
+.consent.replace{background:#F1F3FA;color:var(--ink);margin-top:-8px}

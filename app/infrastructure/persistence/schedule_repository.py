@@ -56,32 +56,61 @@ class PostgresScheduleRepository:
     ) -> int:
         """Create a schedule with its subjects and study events in one transaction."""
         with self._db.cursor(commit=True) as cur:
+            return self._insert_schedule(cur, user_id, pdf_document_id, valid_from, valid_to, events)
+
+    def replace_all(
+        self, user_id: int, pdf_document_id: int | None, valid_from: date, valid_to: date, events: list[StudyEvent]
+    ) -> int:
+        """Remove all of the user's schedules and save the new one in one transaction (F-23).
+
+        Subjects, study events and conflicts of the removed schedules disappear with them; links to Google
+        Calendar events are kept (see calendar_events) so the calendar sync can delete those events.
+        """
+        with self._db.cursor(commit=True) as cur:
+            cur.execute("DELETE FROM schedules WHERE user_id = %s", (user_id,))
+            return self._insert_schedule(cur, user_id, pdf_document_id, valid_from, valid_to, events)
+
+    def count_events(self, user_id: int) -> int:
+        with self._db.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO schedules (user_id, pdf_document_id, valid_from, valid_to)
-                VALUES (%s, %s, %s, %s) RETURNING id
+                SELECT count(*) AS n FROM study_events se JOIN schedules sc ON sc.id = se.schedule_id
+                WHERE sc.user_id = %s
                 """,
-                (user_id, pdf_document_id, valid_from, valid_to),
+                (user_id,),
             )
-            schedule_id = cur.fetchone()["id"]
+            return cur.fetchone()["n"]
 
-            subject_ids: dict[str, int] = {}
-            for event in events:
-                if event.subject_name not in subject_ids:
-                    cur.execute(
-                        "INSERT INTO subjects (schedule_id, name) VALUES (%s, %s) RETURNING id",
-                        (schedule_id, event.subject_name),
-                    )
-                    subject_ids[event.subject_name] = cur.fetchone()["id"]
+    @staticmethod
+    def _insert_schedule(
+        cur, user_id: int, pdf_document_id: int | None, valid_from: date, valid_to: date, events: list[StudyEvent]
+    ) -> int:
+        cur.execute(
+            """
+            INSERT INTO schedules (user_id, pdf_document_id, valid_from, valid_to)
+            VALUES (%s, %s, %s, %s) RETURNING id
+            """,
+            (user_id, pdf_document_id, valid_from, valid_to),
+        )
+        schedule_id = cur.fetchone()["id"]
+
+        subject_ids: dict[str, int] = {}
+        for event in events:
+            if event.subject_name not in subject_ids:
                 cur.execute(
-                    """
-                    INSERT INTO study_events
-                        (schedule_id, subject_id, event_type, day_of_week, start_time, end_time, room, is_mandatory,
-                         week_pattern)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    _event_values(schedule_id, subject_ids[event.subject_name], event),
+                    "INSERT INTO subjects (schedule_id, name) VALUES (%s, %s) RETURNING id",
+                    (schedule_id, event.subject_name),
                 )
+                subject_ids[event.subject_name] = cur.fetchone()["id"]
+            cur.execute(
+                """
+                INSERT INTO study_events
+                    (schedule_id, subject_id, event_type, day_of_week, start_time, end_time, room, is_mandatory,
+                     week_pattern)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                _event_values(schedule_id, subject_ids[event.subject_name], event),
+            )
         return schedule_id
 
     def list_study_events(

@@ -35,3 +35,11 @@ class AnalysisFailed(Exception):
     def __init__(self, message: str, attempts: int):
         super().__init__(message)
         self.attempts = attempts
+
+
+class ReplaceConfirmationRequired(Exception):
+    """The new schedule replaces the old one; nothing is changed until the user confirms (F-23)."""
+
+    def __init__(self, event_count: int):
+        super().__init__(f"{event_count} existing study events would be removed")
+        self.event_count = event_count

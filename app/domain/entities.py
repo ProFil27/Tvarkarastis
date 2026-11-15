@@ -70,6 +70,7 @@ class PdfDocument:
     user_id: int
     filename: str
     status: PdfStatus
+    replace_existing: bool = False  # the new schedule is meant to replace the current one (F-22)
 
 
 @dataclass(frozen=True)
