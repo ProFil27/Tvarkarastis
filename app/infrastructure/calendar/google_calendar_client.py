@@ -165,9 +165,10 @@ class GoogleCalendarClient:
                 return make_request().execute(num_retries=0)
             except HttpError as exc:
                 code, retryable = _classify_http_error(exc)
+                reason = f"HTTP {exc.resp.status}: {exc.reason}"  # Google's explanation; never contains tokens
                 if not retryable:
-                    raise CalendarError(code, f"HTTP {exc.resp.status}")
-                reason = f"HTTP {exc.resp.status}"
+                    log.warning("Calendar request rejected: %s", reason)
+                    raise CalendarError(code, reason)
             except (OSError, httplib2.HttpLib2Error, google.auth.exceptions.TransportError) as exc:
                 reason = type(exc).__name__
             if attempt < len(self._retry_delays):
