@@ -1,6 +1,6 @@
 from datetime import date
 
-from app.domain.entities import StudyEvent, StudyEventType
+from app.domain.entities import StudyEvent, StudyEventType, WeekPattern
 from app.domain.weekday import Weekday
 from app.infrastructure.database import Database
 
@@ -34,8 +34,9 @@ class PostgresScheduleRepository:
                 cur.execute(
                     """
                     INSERT INTO study_events
-                        (schedule_id, subject_id, event_type, day_of_week, start_time, end_time, room, is_mandatory)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        (schedule_id, subject_id, event_type, day_of_week, start_time, end_time, room, is_mandatory,
+                         week_pattern)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         schedule_id,
@@ -46,6 +47,7 @@ class PostgresScheduleRepository:
                         event.end_time,
                         event.room,
                         event.is_mandatory,
+                        event.week_pattern.value,
                     ),
                 )
         return schedule_id
@@ -55,7 +57,7 @@ class PostgresScheduleRepository:
     ) -> list[StudyEvent]:
         query = """
             SELECT se.id, se.event_type, se.day_of_week, se.start_time, se.end_time,
-                   se.room, se.is_mandatory, sub.name AS subject_name,
+                   se.room, se.is_mandatory, se.week_pattern, sub.name AS subject_name,
                    sc.valid_from, sc.valid_to
             FROM study_events se
             JOIN subjects sub ON sub.id = se.subject_id
@@ -83,6 +85,7 @@ class PostgresScheduleRepository:
                 is_mandatory=r["is_mandatory"],
                 valid_from=r["valid_from"],
                 valid_to=r["valid_to"],
+                week_pattern=WeekPattern(r["week_pattern"]),
             )
             for r in rows
         ]

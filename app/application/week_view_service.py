@@ -12,6 +12,7 @@ from app.application.ports import (
     ScheduleRepository,
     WorkShiftRepository,
 )
+from app.domain.academic_week import pattern_applies, week_number
 from app.domain.entities import Notification, StudyEvent, WorkShift
 from app.domain.weekday import Weekday
 
@@ -56,6 +57,7 @@ class WeekView:
     next_week: date
     days: list[DayView]
     has_data: bool
+    week_number: int  # 1 or 2: the study week (see domain/academic_week.py)
 
 
 def monday_of(day: date) -> date:
@@ -63,11 +65,13 @@ def monday_of(day: date) -> date:
 
 
 def _runs_in_week(event: StudyEvent, week_start: date) -> bool:
-    """A study event repeats weekly, but only inside the validity period of its schedule."""
+    """A study event repeats weekly (or on week 1 / week 2 only) inside the validity period of its schedule."""
     day = week_start + timedelta(days=event.weekday.index)
     if event.valid_from is not None and day < event.valid_from:
         return False
-    return event.valid_to is None or day <= event.valid_to
+    if event.valid_to is not None and day > event.valid_to:
+        return False
+    return pattern_applies(event.week_pattern, day)
 
 
 class WeekViewService:
@@ -125,6 +129,7 @@ class WeekViewService:
             next_week=week_start + timedelta(days=7),
             days=days,
             has_data=bool(events or shifts),
+            week_number=week_number(week_start),
         )
 
     def unread_notifications(self, user_id: int) -> list[Notification]:

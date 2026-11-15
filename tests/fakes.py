@@ -14,6 +14,7 @@ from app.domain.entities import (
     StudyEvent,
     StudyEventType,
     User,
+    WeekPattern,
     WorkShift,
 )
 from app.domain.weekday import Weekday
@@ -147,8 +148,13 @@ MONDAY = date(2026, 10, 26)  # a Monday; sample shifts fall on it
 TUESDAY = date(2026, 10, 27)
 
 
-def sample_event(event_id=None, weekday=Weekday.MONDAY, start=time(9, 0), end=time(10, 30), subject="Programavimas"):
-    return StudyEvent(event_id, subject, StudyEventType.LECTURE, weekday, start, end, "A1", True)
+def sample_event(
+    event_id=None, weekday=Weekday.MONDAY, start=time(9, 0), end=time(10, 30), subject="Programavimas",
+    week_pattern=WeekPattern.EVERY_WEEK,
+):
+    return StudyEvent(
+        event_id, subject, StudyEventType.LECTURE, weekday, start, end, "A1", True, week_pattern=week_pattern
+    )
 
 
 class FakeRecognizer:

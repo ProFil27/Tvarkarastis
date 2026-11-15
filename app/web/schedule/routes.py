@@ -2,7 +2,7 @@ from flask import Blueprint, flash, redirect, render_template, request, session,
 
 from app.application.errors import RecognitionFailed, RowsValidationFailed, ValidationFailed
 from app.application.schedule_import_service import ReviewRow
-from app.domain.entities import StudyEventType
+from app.domain.entities import StudyEventType, WeekPattern
 from app.domain.weekday import Weekday
 from app.web import messages
 from app.web.context import current_user_id, login_required, services
@@ -11,6 +11,7 @@ schedule_bp = Blueprint("schedule", __name__, url_prefix="/schedule")
 
 _PENDING_ROWS = "pending_review_rows"
 _PENDING_PDF_ID = "pending_pdf_document_id"
+_PENDING_PERIOD = "pending_period"
 
 _EVENT_TYPE_CHOICES = [
     (StudyEventType.LECTURE.value, "Paskaita"),
@@ -18,21 +19,30 @@ _EVENT_TYPE_CHOICES = [
     (StudyEventType.LABORATORY.value, "Laboratoriniai darbai"),
 ]
 _WEEKDAY_CHOICES = [(weekday.value, weekday.label) for weekday in Weekday]
+_WEEK_PATTERN_CHOICES = [
+    (WeekPattern.EVERY_WEEK.value, "Kiekvieną savaitę"),
+    (WeekPattern.WEEK_1.value, "1 savaitė"),
+    (WeekPattern.WEEK_2.value, "2 savaitė"),
+]
 
 
-def _render_review(rows: list[dict], errors: list[dict]):
+def _render_review(rows: list[dict], errors: list[dict], period: dict, period_errors: dict | None = None):
     return render_template(
         "review.html",
         entries=rows,
         errors=errors,
+        period=period,
+        period_errors=period_errors or {},
         weekday_choices=_WEEKDAY_CHOICES,
         event_type_choices=_EVENT_TYPE_CHOICES,
+        week_pattern_choices=_WEEK_PATTERN_CHOICES,
     )
 
 
 def _clear_pending() -> None:
     session.pop(_PENDING_ROWS, None)
     session.pop(_PENDING_PDF_ID, None)
+    session.pop(_PENDING_PERIOD, None)
 
 
 @schedule_bp.route("/upload", methods=["GET", "POST"])
@@ -56,6 +66,7 @@ def upload():
 
     session[_PENDING_ROWS] = [row.to_dict() for row in result.rows]
     session[_PENDING_PDF_ID] = result.pdf_document_id
+    session[_PENDING_PERIOD] = {"valid_from": result.valid_from, "valid_to": result.valid_to}
     return redirect(url_for("schedule.review"))
 
 
@@ -66,7 +77,7 @@ def review():
     if not rows:
         flash("Nėra atpažintų duomenų peržiūrai. Pirmiausia įkelkite tvarkaraštį.", "error")
         return redirect(url_for("schedule.upload"))
-    return _render_review(rows, [{} for _ in rows])
+    return _render_review(rows, [{} for _ in rows], session.get(_PENDING_PERIOD, {}))
 
 
 @schedule_bp.route("/review", methods=["POST"])
@@ -92,14 +103,23 @@ def submit_review():
             end_time=request.form.get(f"end_time_{i}", ""),
             room=request.form.get(f"room_{i}", ""),
             is_mandatory=request.form.get(f"is_mandatory_{i}") == "on",
+            week_pattern=request.form.get(f"week_pattern_{i}", WeekPattern.EVERY_WEEK.value),
         )
         for i in range(int(request.form.get("row_count", 0)))
     ]
+    period = {
+        "valid_from": request.form.get("valid_from", "").strip(),
+        "valid_to": request.form.get("valid_to", "").strip(),
+    }
 
     try:
-        services().schedule_import.confirm(current_user_id(), pdf_document_id, rows)
+        services().schedule_import.confirm(current_user_id(), pdf_document_id, rows, **period)
     except RowsValidationFailed as exc:
-        return _render_review([row.to_dict() for row in rows], [messages.translate(e) for e in exc.errors])
+        return _render_review([row.to_dict() for row in rows], [messages.translate(e) for e in exc.errors], period)
+    except ValidationFailed as exc:
+        return _render_review(
+            [row.to_dict() for row in rows], [{} for _ in rows], period, messages.translate(exc.errors)
+        )
 
     _clear_pending()
     flash("Tvarkaraštis išsaugotas.", "success")

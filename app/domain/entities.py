@@ -16,6 +16,14 @@ class StudyEventType(Enum):
     LABORATORY = "LABORATORINIS_DARBAS"
 
 
+class WeekPattern(Enum):
+    """On which study weeks an event takes place (see domain/academic_week.py)."""
+
+    EVERY_WEEK = "KIEKVIENA"
+    WEEK_1 = "PIRMA"
+    WEEK_2 = "ANTRA"
+
+
 class PdfStatus(Enum):
     UPLOADED = "IKELTAS"
     PROCESSING = "APDOROJAMAS"
@@ -60,6 +68,7 @@ class StudyEvent:
     is_mandatory: bool = True
     valid_from: date | None = None  # validity of the schedule the event belongs to (None = unknown / unlimited)
     valid_to: date | None = None
+    week_pattern: WeekPattern = WeekPattern.EVERY_WEEK
 
 
 @dataclass(frozen=True)

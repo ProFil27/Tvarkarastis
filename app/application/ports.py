@@ -26,6 +26,8 @@ from app.domain.entities import (
 class RecognitionResult:
     events: list[StudyEvent]
     attempts: int
+    valid_from: date | None = None  # validity period read from the PDF (None = not found)
+    valid_to: date | None = None
 
 
 @dataclass(frozen=True)

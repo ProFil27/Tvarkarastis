@@ -1,12 +1,19 @@
 """Jinja helpers for presentation only."""
 
 from app.application.week_view_service import ConflictDetail
-from app.domain.entities import StudyEventType
+from app.domain.entities import StudyEventType, WeekPattern
 
 _EVENT_TYPE_LABELS = {
     StudyEventType.LECTURE: "paskaita",
     StudyEventType.PRACTICAL: "pratybos",
     StudyEventType.LABORATORY: "laboratorinis darbas",
+}
+
+
+_WEEK_PATTERN_LABELS = {
+    WeekPattern.EVERY_WEEK: "kiekvieną savaitę",
+    WeekPattern.WEEK_1: "1 savaitė",
+    WeekPattern.WEEK_2: "2 savaitė",
 }
 
 
@@ -28,6 +35,10 @@ def plural_lt(count: int, one: str, few: str, many: str) -> str:
 
 def event_type_label(event_type: StudyEventType) -> str:
     return _EVENT_TYPE_LABELS[event_type]
+
+
+def week_pattern_label(pattern: WeekPattern) -> str:
+    return _WEEK_PATTERN_LABELS[pattern]
 
 
 def _minutes(value) -> int:

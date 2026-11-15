@@ -17,6 +17,9 @@ CREATE TYPE conflict_status AS ENUM ('AKTYVUS', 'IGNORUOTAS', 'ISSPRESTAS');
 
 CREATE TYPE ai_request_type AS ENUM ('ATPAZINIMAS', 'ANALIZE');
 
+-- On which study weeks an event takes place: every week, only week 1 or only week 2
+CREATE TYPE week_pattern AS ENUM ('KIEKVIENA', 'PIRMA', 'ANTRA');
+
 -- User: user account (managed by AK)
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -64,6 +67,7 @@ CREATE TABLE study_events (
     end_time TIME NOT NULL,
     room VARCHAR(100),
     is_mandatory BOOLEAN NOT NULL DEFAULT TRUE,
+    week_pattern week_pattern NOT NULL DEFAULT 'KIEKVIENA',
     CONSTRAINT study_event_time_check CHECK (end_time > start_time)
 );
 

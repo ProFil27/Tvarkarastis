@@ -116,6 +116,10 @@ table.review th:first-child,table.review td:first-child{padding-left:14px}
 table.review td:nth-child(1) .cell{min-width:200px}
 table.review td:nth-child(2) .cell{min-width:118px}
 table.review td:nth-child(3) .cell{min-width:128px}
-table.review td:nth-child(4) .cell,table.review td:nth-child(5) .cell{min-width:100px}
-table.review td:nth-child(6) .cell{min-width:90px}
+table.review td:nth-child(4) .cell{min-width:150px}
+table.review td:nth-child(5) .cell,table.review td:nth-child(6) .cell{min-width:100px}
+table.review td:nth-child(7) .cell{min-width:90px}
 table.review td:last-child{text-align:center}
+.period{display:flex;gap:16px;align-items:flex-start;margin-bottom:16px}
+.period .in{width:190px}
+.period .hint{align-self:center;margin-top:20px}

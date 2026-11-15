@@ -15,10 +15,11 @@ from app.application.validation import (
     ChangeListener,
     format_time,
     ignore_changes,
+    parse_date,
     parse_time,
     validate_time_range,
 )
-from app.domain.entities import AiRequestType, PdfStatus, StudyEvent, StudyEventType
+from app.domain.entities import AiRequestType, PdfStatus, StudyEvent, StudyEventType, WeekPattern
 from app.domain.rules import MAX_PDF_SIZE_BYTES, SEMESTER_LENGTH_DAYS
 from app.domain.weekday import Weekday
 
@@ -34,6 +35,7 @@ class ReviewRow:
     end_time: str
     room: str
     is_mandatory: bool
+    week_pattern: str = WeekPattern.EVERY_WEEK.value
 
     @classmethod
     def from_event(cls, event: StudyEvent) -> "ReviewRow":
@@ -45,6 +47,7 @@ class ReviewRow:
             end_time=format_time(event.end_time),
             room=event.room or "",
             is_mandatory=event.is_mandatory,
+            week_pattern=event.week_pattern.value,
         )
 
     def to_dict(self) -> dict:
@@ -55,6 +58,8 @@ class ReviewRow:
 class RecognizedUpload:
     pdf_document_id: int
     rows: list[ReviewRow]
+    valid_from: str = ""  # "YYYY-MM-DD" read from the PDF, "" if it was not found
+    valid_to: str = ""
 
 
 class ScheduleImportService:
@@ -94,29 +99,62 @@ class ScheduleImportService:
 
         self._pdf_documents.set_status(pdf_document.id, PdfStatus.RECOGNIZED)
         self._ai_log.finish(request_id, result.attempts, None)
-        return RecognizedUpload(pdf_document.id, [ReviewRow.from_event(e) for e in result.events])
+        return RecognizedUpload(
+            pdf_document.id,
+            [ReviewRow.from_event(e) for e in result.events],
+            result.valid_from.isoformat() if result.valid_from else "",
+            result.valid_to.isoformat() if result.valid_to else "",
+        )
 
     def validate_rows(self, rows: list[ReviewRow]) -> list[dict[str, str]]:
         """One {field: error_code} dict per row; an empty dict means the row is valid."""
         return [self._validate_row(row) for row in rows]
 
-    def confirm(self, user_id: int, pdf_document_id: int, rows: list[ReviewRow]) -> int:
-        """Persist the schedule only after the user confirmed it (F-08, N-24)."""
+    def confirm(
+        self, user_id: int, pdf_document_id: int, rows: list[ReviewRow], valid_from: str = "", valid_to: str = ""
+    ) -> int:
+        """Persist the schedule only after the user confirmed it (F-08, N-24).
+
+        `valid_from` / `valid_to` ("YYYY-MM-DD") are the schedule's validity period; when both are empty
+        the schedule is valid from today for one semester.
+        """
         errors = self.validate_rows(rows)
         if any(errors):
             raise RowsValidationFailed(errors)
+        period_errors = self.validate_period(valid_from, valid_to)
+        if period_errors:
+            raise ValidationFailed(period_errors)
 
-        today = self._today()
+        if valid_from or valid_to:
+            period = (parse_date(valid_from), parse_date(valid_to))
+        else:
+            today = self._today()
+            period = (today, today + timedelta(days=SEMESTER_LENGTH_DAYS))
         schedule_id = self._schedules.add(
             user_id=user_id,
             pdf_document_id=pdf_document_id,
-            valid_from=today,
-            valid_to=today + timedelta(days=SEMESTER_LENGTH_DAYS),
+            valid_from=period[0],
+            valid_to=period[1],
             events=[self._to_event(row) for row in rows],
         )
         self._pdf_documents.set_status(pdf_document_id, PdfStatus.CONFIRMED)
         self._on_schedule_saved(user_id)
         return schedule_id
+
+    @staticmethod
+    def validate_period(valid_from: str, valid_to: str) -> dict[str, str]:
+        """Both dates empty (default period) or both valid with `valid_to` later than `valid_from`."""
+        if not valid_from and not valid_to:
+            return {}
+        errors = {}
+        start, end = parse_date(valid_from), parse_date(valid_to)
+        if start is None:
+            errors["valid_from"] = "invalid_date"
+        if end is None:
+            errors["valid_to"] = "invalid_date"
+        if start is not None and end is not None and end <= start:
+            errors["valid_to"] = "end_not_after_start"
+        return errors
 
     def reject(self, pdf_document_id: int) -> None:
         """The user rejected the recognised data; nothing is saved."""
@@ -140,6 +178,8 @@ class ScheduleImportService:
             errors["event_type"] = "invalid_choice"
         if Weekday.from_code(row.day_of_week) is None:
             errors["day_of_week"] = "invalid_choice"
+        if row.week_pattern not in {p.value for p in WeekPattern}:
+            errors["week_pattern"] = "invalid_choice"
         return errors
 
     @staticmethod
@@ -153,4 +193,5 @@ class ScheduleImportService:
             end_time=parse_time(row.end_time),
             room=row.room.strip() or None,
             is_mandatory=row.is_mandatory,
+            week_pattern=WeekPattern(row.week_pattern),
         )

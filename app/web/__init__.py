@@ -26,6 +26,7 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         initials=filters.initials,
         plural_lt=filters.plural_lt,
         event_type_label=filters.event_type_label,
+        week_pattern_label=filters.week_pattern_label,
         timeline=filters.timeline,
     )
 
