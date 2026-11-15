@@ -27,7 +27,9 @@ class PostgresPdfDocumentRepository:
             row = cur.fetchone()
         if row is None:
             return None
-        return PdfDocument(row["id"], row["user_id"], row["filename"], PdfStatus(row["status"]), row["replace_existing"])
+        return PdfDocument(
+            row["id"], row["user_id"], row["filename"], PdfStatus(row["status"]), row["replace_existing"]
+        )
 
     def set_status(self, pdf_document_id: int, status: PdfStatus) -> None:
         with self._db.cursor(commit=True) as cur:

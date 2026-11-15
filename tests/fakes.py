@@ -11,7 +11,6 @@ from app.domain.entities import (
     CalendarEventLink,
     CalendarTokens,
     Conflict,
-    DetectedConflict,
     Notification,
     NotificationType,
     PdfDocument,
@@ -104,7 +103,9 @@ class FakeScheduleRepository:
     def add_event(self, user_id, event, default_from, default_to):
         if not self.events.get(user_id):
             self.saved_schedules.append({"user_id": user_id, "valid_from": default_from, "valid_to": default_to})
-        stored = replace(event, id=self._new_id(), valid_from=default_from, valid_to=default_to, updated_at=datetime.now())
+        stored = replace(
+            event, id=self._new_id(), valid_from=default_from, valid_to=default_to, updated_at=datetime.now()
+        )
         self.events.setdefault(user_id, []).append(stored)
         return stored
 
@@ -200,7 +201,10 @@ class FakeNotificationRepository:
 
     def add(self, user_id, conflict_id, message, notification_type=NotificationType.CONFLICT):
         self.items.append(
-            {"id": len(self.items) + 1, "user_id": user_id, "message": message, "read": False, "type": notification_type}
+            {
+                "id": len(self.items) + 1, "user_id": user_id, "message": message, "read": False,
+                "type": notification_type,
+            }
         )
 
     def list_unread(self, user_id):

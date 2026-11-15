@@ -89,8 +89,13 @@ class World:
                 datetime(2026, 11, 14, 10, 0), datetime(2026, 11, 14, 10, 0),
             )
 
+    def link_of(self, study_event_id):
+        return next(link for link in self.links.list_links(1) if link.study_event_id == study_event_id)
+
     def with_data(self):
-        self.schedules.add(1, None, FROM, TO, [lecture("A"), lecture("B", Weekday.WEDNESDAY), lecture("C", Weekday.FRIDAY)])
+        self.schedules.add(
+            1, None, FROM, TO, [lecture("A"), lecture("B", Weekday.WEDNESDAY), lecture("C", Weekday.FRIDAY)]
+        )
         self.schedules.add(2, None, FROM, TO, [lecture("Svetimas")])  # another user's data must never be exported
         self.shifts.add(1, "Kavinė", date(2026, 11, 16), time(15, 0), time(19, 0))
         return self
@@ -107,7 +112,8 @@ def test_export_creates_one_google_event_per_record_and_records_the_run():
         "A (paskaita)", "B (paskaita)", "C (paskaita)", "Darbas: Kavinė"}
     assert len(world.links.list_links(1)) == 4 and world.links.list_links(2) == []
     [operation] = world.operations.operations
-    assert (operation.operation_type.name, operation.status, operation.created_count) == ("EXPORT", SyncStatus.SUCCESS, 4)
+    assert operation.operation_type.name == "EXPORT" and operation.status == SyncStatus.SUCCESS
+    assert operation.created_count == 4
     assert operation.finished_at >= operation.started_at
     assert world.service.status(1).exported and world.service.status(1).last_success_at == operation.finished_at
 
@@ -126,7 +132,7 @@ def test_a_changed_record_is_updated_in_place_and_a_removed_one_is_deleted_from_
     world = World().with_data()
     world.service.export(1)
     lecture_a, lecture_b = world.schedules.list_study_events(1)[:2]
-    google_id_of_a = next(l.google_event_id for l in world.links.list_links(1) if l.study_event_id == lecture_a.id)
+    google_id_of_a = world.link_of(lecture_a.id).google_event_id
 
     world.schedules.update_event(1, lecture_a.id, replace(lecture_a, subject_name="A (pakeista)"))
     world.schedules.remove_event(1, lecture_b.id)
@@ -158,14 +164,14 @@ def test_an_event_deleted_in_google_is_created_again_instead_of_failing():
     world = World().with_data()
     world.service.export(1)
     lecture_a = world.schedules.list_study_events(1)[0]
-    link = next(l for l in world.links.list_links(1) if l.study_event_id == lecture_a.id)
+    link = world.link_of(lecture_a.id)
     del world.provider.events[link.google_event_id]  # the user removed it in Google Calendar
     world.schedules.update_event(1, lecture_a.id, lecture_a)
 
     result = world.service.export(1)
 
     assert (result.created, result.updated) == (1, 0) and len(world.provider.events) == 4
-    assert next(l for l in world.links.list_links(1) if l.study_event_id == lecture_a.id).google_event_id != link.google_event_id
+    assert world.link_of(lecture_a.id).google_event_id != link.google_event_id
 
 
 def test_export_needs_a_connected_account():
@@ -247,7 +253,8 @@ def test_an_expired_access_token_is_refreshed_once_and_the_new_one_is_stored_enc
     world.service.export(1)
 
     assert len(world.provider.calls_named("refresh")) == 1
-    assert world.accounts.get(1).access_token_enc == "enc:access-2" and world.accounts.get(1).token_expires_at.year == 2099
+    assert world.accounts.get(1).access_token_enc == "enc:access-2"
+    assert world.accounts.get(1).token_expires_at.year == 2099
     assert {call[1] for call in world.provider.calls_named("create_event")} == {"access-2"}
 
 
@@ -332,7 +339,8 @@ def test_export_without_a_connection_tells_the_user_to_connect_first():
 
 
 def test_a_failed_export_shows_the_reason_and_what_to_do():
-    world = World(fakes.FakeCalendarProvider(errors={"create_event": CalendarError(CalendarError.UNAVAILABLE)})).with_data()
+    provider = fakes.FakeCalendarProvider(errors={"create_event": CalendarError(CalendarError.UNAVAILABLE)})
+    world = World(provider).with_data()
     page = client_for(world).post("/calendar/export", follow_redirects=True).get_data(as_text=True)
 
     assert "Kalendoriaus tiekėjas nepasiekiamas. Bandykite dar kartą." in page

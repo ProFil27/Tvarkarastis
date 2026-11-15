@@ -20,7 +20,12 @@ class PostgresCalendarEventRepository:
             return [CalendarEventLink(**row) for row in cur.fetchall()]
 
     def add_link(
-        self, user_id: int, study_event_id: int | None, work_shift_id: int | None, google_event_id: str, synced_at: datetime
+        self,
+        user_id: int,
+        study_event_id: int | None,
+        work_shift_id: int | None,
+        google_event_id: str,
+        synced_at: datetime,
     ) -> CalendarEventLink:
         with self._db.cursor(commit=True) as cur:
             cur.execute(

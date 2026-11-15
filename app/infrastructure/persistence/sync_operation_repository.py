@@ -30,7 +30,10 @@ class PostgresSyncOperationRepository:
     def start(self, user_id: int, operation_type: SyncOperationType, started_at: datetime) -> int:
         with self._db.cursor(commit=True) as cur:
             cur.execute(
-                "INSERT INTO sync_operations (user_id, operation_type, status, started_at) VALUES (%s, %s, %s, %s) RETURNING id",
+                """
+                INSERT INTO sync_operations (user_id, operation_type, status, started_at)
+                VALUES (%s, %s, %s, %s) RETURNING id
+                """,
                 (user_id, operation_type.value, SyncStatus.IN_PROGRESS.value, started_at),
             )
             return cur.fetchone()["id"]
@@ -65,7 +68,11 @@ class PostgresSyncOperationRepository:
     def has_export(self, user_id: int) -> bool:
         with self._db.cursor() as cur:
             cur.execute(
-                "SELECT EXISTS (SELECT 1 FROM sync_operations WHERE user_id = %s AND operation_type = %s AND status = %s) AS found",
+                """
+                SELECT EXISTS (
+                    SELECT 1 FROM sync_operations WHERE user_id = %s AND operation_type = %s AND status = %s
+                ) AS found
+                """,
                 (user_id, SyncOperationType.EXPORT.value, SyncStatus.SUCCESS.value),
             )
             return cur.fetchone()["found"]

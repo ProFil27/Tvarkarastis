@@ -1,4 +1,4 @@
-"""User-facing (Lithuanian) texts for calendar errors, shared by the web layer and the system notifications (F-25, F-31).
+"""User-facing (Lithuanian) texts for calendar errors, shared by the web layer and the notifications (F-25, F-31).
 
 Each text names the cause and the next step.
 """

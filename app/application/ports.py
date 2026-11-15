@@ -261,7 +261,12 @@ class CalendarEventRepository(Protocol):
     def list_links(self, user_id: int) -> list[CalendarEventLink]: ...
 
     def add_link(
-        self, user_id: int, study_event_id: int | None, work_shift_id: int | None, google_event_id: str, synced_at: datetime
+        self,
+        user_id: int,
+        study_event_id: int | None,
+        work_shift_id: int | None,
+        google_event_id: str,
+        synced_at: datetime,
     ) -> CalendarEventLink: ...
 
     def touch_link(self, link_id: int, synced_at: datetime) -> None: ...

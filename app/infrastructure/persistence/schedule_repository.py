@@ -140,7 +140,9 @@ class PostgresScheduleRepository:
 
     def add_event(self, user_id: int, event: StudyEvent, default_from: date, default_to: date) -> StudyEvent:
         with self._db.cursor(commit=True) as cur:
-            cur.execute("SELECT id FROM schedules WHERE user_id = %s ORDER BY valid_to DESC, id DESC LIMIT 1", (user_id,))
+            cur.execute(
+                "SELECT id FROM schedules WHERE user_id = %s ORDER BY valid_to DESC, id DESC LIMIT 1", (user_id,)
+            )
             row = cur.fetchone()
             if row:
                 schedule_id = row["id"]

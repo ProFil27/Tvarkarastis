@@ -32,7 +32,9 @@ def test_add_stores_the_event_in_a_default_schedule_and_notifies_listeners():
     event = service.add_event(1, ROW)
 
     assert event.subject_name == "Duomenų bazės" and event.start_time == time(10, 0) and event.updated_at
-    assert schedules.saved_schedules == [{"user_id": 1, "valid_from": date(2026, 11, 14), "valid_to": date(2027, 3, 14)}]
+    assert schedules.saved_schedules == [
+        {"user_id": 1, "valid_from": date(2026, 11, 14), "valid_to": date(2027, 3, 14)}
+    ]
     assert changed == [1]
 
 

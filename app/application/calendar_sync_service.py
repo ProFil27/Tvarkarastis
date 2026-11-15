@@ -269,7 +269,14 @@ class CalendarSyncService:
         return True
 
     def _fail(
-        self, account: CalendarAccount, operation_id: int, code: str, detail: str, created: int, updated: int, deleted: int
+        self,
+        account: CalendarAccount,
+        operation_id: int,
+        code: str,
+        detail: str,
+        created: int,
+        updated: int,
+        deleted: int,
     ) -> None:
         if code == CalendarError.AUTH_EXPIRED:
             self._accounts.set_status(account.user_id, CalendarAccountStatus.RECONNECT_REQUIRED)

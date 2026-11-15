@@ -174,8 +174,17 @@ def test_create_event_sends_the_body_to_the_primary_calendar_and_returns_the_goo
     assert sleeps == []
 
 
-@pytest.mark.parametrize("failure", [http_error(503), http_error(500), http_error(429), requests.ConnectionError("x"),
-                                     TimeoutError("slow"), http_error(403, b'{"errors":[{"reason":"rateLimitExceeded"}]}')])
+@pytest.mark.parametrize(
+    "failure",
+    [
+        http_error(503),
+        http_error(500),
+        http_error(429),
+        requests.ConnectionError("x"),
+        TimeoutError("slow"),
+        http_error(403, b'{"errors":[{"reason":"rateLimitExceeded"}]}'),
+    ],
+)
 def test_temporary_failures_are_retried_after_1_2_and_4_seconds(monkeypatch, failure):
     api = FakeCalendarApi([failure, failure, failure, None])
     client, sleeps = client_with(api, monkeypatch)
@@ -191,7 +200,8 @@ def test_after_three_retries_the_error_is_reported_as_unavailable(monkeypatch):
     with pytest.raises(CalendarError) as exc:
         client.create_event(TOKENS, {})
 
-    assert exc.value.code == CalendarError.UNAVAILABLE and sleeps == [1, 2, 4] and api.attempts == 4  # at most 3 retries
+    assert exc.value.code == CalendarError.UNAVAILABLE
+    assert sleeps == [1, 2, 4] and api.attempts == 4  # at most 3 retries
 
 
 @pytest.mark.parametrize(

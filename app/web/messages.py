@@ -1,7 +1,13 @@
 """Lithuanian user-facing messages for the error codes produced by services."""
 
 from app.application.calendar_texts import calendar_error_text
-from app.domain.rules import MAX_PDF_SIZE_BYTES, MAX_ROOM_LENGTH, MAX_SUBJECT_LENGTH, MAX_WORKPLACE_LENGTH, MIN_PASSWORD_LENGTH
+from app.domain.rules import (
+    MAX_PDF_SIZE_BYTES,
+    MAX_ROOM_LENGTH,
+    MAX_SUBJECT_LENGTH,
+    MAX_WORKPLACE_LENGTH,
+    MIN_PASSWORD_LENGTH,
+)
 
 _MESSAGES = {
     ("name", "required"): "Vardas yra privalomas.",
@@ -11,7 +17,9 @@ _MESSAGES = {
     ("password", "required"): "Slaptažodis yra privalomas.",
     ("password", "too_short"): f"Slaptažodis turi būti ne trumpesnis nei {MIN_PASSWORD_LENGTH} simboliai.",
     ("workplace_name", "required"): "Darbovietė yra privaloma.",
-    ("workplace_name", "too_long"): f"Darbovietės pavadinimas negali būti ilgesnis nei {MAX_WORKPLACE_LENGTH} simbolių.",
+    ("workplace_name", "too_long"): (
+        f"Darbovietės pavadinimas negali būti ilgesnis nei {MAX_WORKPLACE_LENGTH} simbolių."
+    ),
     ("work_date", "invalid_date"): "Data turi būti formatu MMMM-mm-dd.",
     ("weekday", "invalid_choice"): "Pasirinkite savaitės dieną.",
     ("day_of_week", "invalid_choice"): "Pasirinkite savaitės dieną.",

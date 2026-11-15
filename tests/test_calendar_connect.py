@@ -109,7 +109,8 @@ def test_a_failed_reconnect_does_not_change_an_account_that_needs_reconnecting()
     with pytest.raises(CalendarError):
         service.complete_connect(1, "c", request.state, request.state, request.code_verifier)
 
-    assert accounts.get(1).status == CalendarAccountStatus.RECONNECT_REQUIRED and accounts.get(1).access_token_enc == "enc:x"
+    assert accounts.get(1).status == CalendarAccountStatus.RECONNECT_REQUIRED
+    assert accounts.get(1).access_token_enc == "enc:x"
 
 
 def test_tokens_are_never_written_to_the_log(caplog):
@@ -186,8 +187,8 @@ def test_connect_without_consent_shows_a_message_and_does_not_leave_the_site():
 def full_connect(client, **callback_args):
     response = client.post("/calendar/connect", data={"consent": "on"})
     state = response.headers["Location"].split("state=")[1]
-    return response, state, client.get("/calendar/callback", query_string={"code": "c", "state": state, **callback_args},
-                                       follow_redirects=True)
+    query = {"code": "c", "state": state, **callback_args}
+    return response, state, client.get("/calendar/callback", query_string=query, follow_redirects=True)
 
 
 def test_connect_redirects_to_google_and_the_callback_finishes_the_connection():
@@ -223,10 +224,16 @@ def test_callback_rejects_a_wrong_state_and_the_state_cannot_be_reused():
     [
         ({}, {"error": "access_denied"}, "Prieiga nepatvirtinta. Kalendorius neprijungtas."),
         ({"exchange_code": CalendarError(CalendarError.INVALID_CODE)}, {}, "Neteisingas užklausos kodas"),
-        ({"exchange_code": CalendarError(CalendarError.UNAVAILABLE)}, {}, "Kalendoriaus tiekėjas nepasiekiamas. Bandykite dar kartą."),
+        (
+            {"exchange_code": CalendarError(CalendarError.UNAVAILABLE)},
+            {},
+            "Kalendoriaus tiekėjas nepasiekiamas. Bandykite dar kartą.",
+        ),
     ],
 )
-def test_connection_failures_show_the_reason_and_leave_the_account_disconnected(provider_errors, callback_args, message):
+def test_connection_failures_show_the_reason_and_leave_the_account_disconnected(
+    provider_errors, callback_args, message
+):
     client, provider, accounts = make_client(provider=fakes.FakeCalendarProvider(errors=provider_errors))
 
     _, _, callback = full_connect(client, **callback_args)

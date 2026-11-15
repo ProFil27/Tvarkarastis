@@ -16,6 +16,7 @@ class JsonClient(Protocol):
     @staticmethod
     def pdf_part(pdf_content: bytes): ...
 
+
 MAX_ATTEMPTS = 3
 REQUEST_TIMEOUT_MS = 60_000
 INITIAL_BACKOFF_SECONDS = 1.0

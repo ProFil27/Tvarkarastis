@@ -50,6 +50,7 @@ def test_time_fields_are_text_inputs_with_the_shared_script_instead_of_the_nativ
     assert 'placeholder="HH:MM"' in page and 'pattern="([01][0-9]|2[0-3]):[0-5][0-9]"' in page
 
     invalid = client.post(
-        "/work-shifts/add", data={"workplace_name": "K", "work_date": "2026-10-26", "start_time": "18:00", "end_time": "10:00"}
+        "/work-shifts/add",
+        data={"workplace_name": "K", "work_date": "2026-10-26", "start_time": "18:00", "end_time": "10:00"},
     ).get_data(as_text=True)
     assert 'aria-invalid="true"' in invalid and 'value="18:00"' in invalid

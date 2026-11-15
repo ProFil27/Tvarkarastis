@@ -1,7 +1,7 @@
 """Updating Google Calendar after changes, errors and status (F-28, F-30, F-31, N-31..N-34, US-13, US-14)."""
 
 from dataclasses import replace
-from datetime import date, datetime, time
+from datetime import date, time
 
 import pytest
 
@@ -12,10 +12,9 @@ from app.application.study_event_service import StudyEventService
 from app.application.work_shift_service import WorkShiftService
 from app.container import Services
 from app.domain.entities import CalendarAccountStatus, NotificationType, SyncOperationType, SyncStatus
-from app.domain.weekday import Weekday
 from app.web import create_app
 from tests import fakes
-from tests.test_calendar_export import World, lecture, FROM, TO
+from tests.test_calendar_export import FROM, TO, World
 
 ROW = ReviewRow("Algoritmai", "PASKAITA", "KETVIRTADIENIS", "08:30", "10:00", "SRK-I-305", True)
 
@@ -82,7 +81,7 @@ def test_sync_needs_a_connection_and_an_earlier_export():
 def test_editing_a_lecture_updates_exactly_that_google_event():
     world = exported_world()
     lecture_a = world.schedules.list_study_events(1)[0]
-    google_id = next(l.google_event_id for l in world.links.list_links(1) if l.study_event_id == lecture_a.id)
+    google_id = world.link_of(lecture_a.id).google_event_id
     creates_before = len(world.provider.calls_named("create_event"))
 
     world.events.update_event(1, lecture_a.id, ReviewRow.from_event(replace(lecture_a, subject_name="Pakeistas")))
@@ -107,7 +106,8 @@ def test_adding_a_lecture_and_changing_or_removing_a_shift_are_reflected_in_goog
     world.links.unlink_work_shift(shift.id)
     world.work_shifts.remove_shift(1, 99999)  # a no-op removal changes nothing and so triggers no update
     world.service.on_data_changed(1)
-    assert len(world.provider.events) == 4 and all(b["summary"] != "Darbas: Naujas darbdavys" for b in world.provider.events.values())
+    summaries = {body["summary"] for body in world.provider.events.values()}
+    assert len(world.provider.events) == 4 and "Darbas: Naujas darbdavys" not in summaries
 
 
 def test_no_update_without_a_connection_or_an_export_and_no_error_either():
@@ -129,11 +129,16 @@ def test_a_calendar_outage_does_not_undo_the_edit_and_the_user_is_told():
     world.provider.errors["update_event"] = CalendarError(CalendarError.UNAVAILABLE)
     lecture_a = world.schedules.list_study_events(1)[0]
 
-    saved = world.events.update_event(1, lecture_a.id, ReviewRow.from_event(replace(lecture_a, subject_name="Pakeistas")))
+    row = ReviewRow.from_event(replace(lecture_a, subject_name="Pakeistas"))
 
-    assert saved.subject_name == "Pakeistas" == world.schedules.get_event(1, lecture_a.id).subject_name  # local data stays
+    saved = world.events.update_event(1, lecture_a.id, row)
+
+    assert saved.subject_name == "Pakeistas"
+    assert world.schedules.get_event(1, lecture_a.id).subject_name == "Pakeistas"  # the local data stays
     [notice] = sync_errors(world)
-    assert notice.message == "Kalendoriaus sinchronizavimas nepavyko. Kalendoriaus tiekėjas nepasiekiamas. Bandykite dar kartą."
+    assert notice.message == (
+        "Kalendoriaus sinchronizavimas nepavyko. Kalendoriaus tiekėjas nepasiekiamas. Bandykite dar kartą."
+    )
     last = world.operations.last(1)
     assert last.status == SyncStatus.ERROR and last.error_code == "UNAVAILABLE"
     assert world.accounts.get(1).status == CalendarAccountStatus.CONNECTED
@@ -158,7 +163,7 @@ def test_the_change_is_synchronised_later_when_the_calendar_is_back():
     world.provider.errors["update_event"] = CalendarError(CalendarError.UNAVAILABLE)
     lecture_a = world.schedules.list_study_events(1)[0]
     world.events.update_event(1, lecture_a.id, ReviewRow.from_event(replace(lecture_a, subject_name="Vėliau")))
-    google_id = next(l.google_event_id for l in world.links.list_links(1) if l.study_event_id == lecture_a.id)
+    google_id = world.link_of(lecture_a.id).google_event_id
     assert world.provider.events[google_id]["summary"] == "A (paskaita)"  # Google still has the old value
 
     del world.provider.errors["update_event"]

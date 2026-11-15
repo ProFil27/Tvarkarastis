@@ -45,8 +45,9 @@ def test_spring_dates_use_the_september_anchor_of_the_academic_year():
 
 def test_pattern_applies():
     assert pattern_applies(WeekPattern.EVERY_WEEK, date(2026, 9, 7))
-    assert pattern_applies(WeekPattern.WEEK_1, date(2026, 9, 1)) and not pattern_applies(WeekPattern.WEEK_1, date(2026, 9, 8))
-    assert pattern_applies(WeekPattern.WEEK_2, date(2026, 9, 8)) and not pattern_applies(WeekPattern.WEEK_2, date(2026, 9, 1))
+    week_1, week_2 = date(2026, 9, 1), date(2026, 9, 8)
+    assert pattern_applies(WeekPattern.WEEK_1, week_1) and not pattern_applies(WeekPattern.WEEK_1, week_2)
+    assert pattern_applies(WeekPattern.WEEK_2, week_2) and not pattern_applies(WeekPattern.WEEK_2, week_1)
 
 
 def test_shift_conflicts_only_with_lectures_of_its_study_week():

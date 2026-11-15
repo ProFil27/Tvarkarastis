@@ -40,7 +40,10 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     from app.web.week.routes import week_bp
     from app.web.work_shifts.routes import work_shifts_bp
 
-    for blueprint in (home_bp, auth_bp, schedule_bp, study_events_bp, work_shifts_bp, week_bp, reminders_bp, calendar_bp):
+    blueprints = (
+        home_bp, auth_bp, schedule_bp, study_events_bp, work_shifts_bp, week_bp, reminders_bp, calendar_bp
+    )
+    for blueprint in blueprints:
         app.register_blueprint(blueprint)
 
     @app.context_processor

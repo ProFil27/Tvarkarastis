@@ -1,7 +1,6 @@
 """Full-flow tests across all features: real Flask app and templates, fake repositories underneath."""
 
 import io
-from datetime import time
 
 import pytest
 

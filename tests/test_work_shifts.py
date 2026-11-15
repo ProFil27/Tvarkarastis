@@ -74,7 +74,9 @@ def test_update_changes_the_shift_validates_and_notifies():
 
     with pytest.raises(ValidationFailed) as exc:
         service.update_shift(1, shift.id, "x" * 101, "nope", "18:00", "10:00")
-    assert exc.value.errors == {"workplace_name": "too_long", "work_date": "invalid_date", "end_time": "end_not_after_start"}
+    assert exc.value.errors == {
+        "workplace_name": "too_long", "work_date": "invalid_date", "end_time": "end_not_after_start",
+    }
     assert service.get_shift(1, shift.id) == updated and changed == [1, 1]  # invalid edit changes nothing
 
 
