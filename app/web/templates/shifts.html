@@ -9,8 +9,9 @@
         </div>
     </div>
 
-    <form method="post" action="{{ url_for('work_shifts.add_shift') }}" class="card" novalidate>
-        <h2 style="margin-bottom:16px">Nauja pamaina</h2>
+    <form method="post" action="{{ url_for('work_shifts.save_shift', shift_id=editing_id) if editing_id else url_for('work_shifts.add_shift') }}"
+          class="card" novalidate>
+        <h2 style="margin-bottom:16px">{{ 'Keisti pamainą' if editing_id else 'Nauja pamaina' }}</h2>
         <div class="form">
             <div>
                 <label for="workplace_name">Darbovietė</label>
@@ -34,7 +35,10 @@
                 {{ time_field('end_time', form.get('end_time', ''), 'in', errors.get('end_time'), 'end_time') }}
                 {% if errors.get('end_time') %}<div class="field-error">{{ errors['end_time'] }}</div>{% endif %}
             </div>
-            <button type="submit" class="btn p">+ Pridėti pamainą</button>
+            <div class="form-actions">
+                {% if editing_id %}<a class="btn s" href="{{ url_for('work_shifts.list_shifts') }}">Atšaukti</a>{% endif %}
+                <button type="submit" class="btn p">{{ 'Išsaugoti' if editing_id else '+ Pridėti pamainą' }}</button>
+            </div>
         </div>
     </form>
 
@@ -48,13 +52,14 @@
                 <table>
                     <tr><th>Darbovietė</th><th>Data</th><th>Pradžia</th><th>Pabaiga</th><th></th></tr>
                     {% for shift in shifts %}
-                        <tr>
+                        <tr class="{{ 'row-editing' if shift.id == editing_id }}">
                             <td><b>{{ shift.workplace_name }}</b></td>
                             <td>{{ shift.work_date.isoformat() }} <span class="hint">{{ shift.weekday.label }}</span></td>
                             <td>{{ shift.start_time.strftime('%H:%M') }}</td>
                             <td>{{ shift.end_time.strftime('%H:%M') }}</td>
-                            <td style="text-align:right">
-                                <form method="post" action="{{ url_for('work_shifts.delete_shift', shift_id=shift.id) }}">
+                            <td style="text-align:right;white-space:nowrap">
+                                <a class="btn s btn-sm" href="{{ url_for('work_shifts.edit_shift', shift_id=shift.id) }}">Keisti</a>
+                                <form method="post" style="display:inline" action="{{ url_for('work_shifts.delete_shift', shift_id=shift.id) }}">
                                     <button type="submit" class="btn d">Šalinti</button>
                                 </form>
                             </td>

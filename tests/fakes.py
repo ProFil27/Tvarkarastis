@@ -104,13 +104,23 @@ class FakeWorkShiftRepository:
         self._next_id = 1
 
     def add(self, user_id, workplace_name, work_date, start_time, end_time):
-        shift = WorkShift(self._next_id, workplace_name, work_date, start_time, end_time)
+        shift = WorkShift(self._next_id, workplace_name, work_date, start_time, end_time, datetime.now())
         self._next_id += 1
         self.shifts.setdefault(user_id, []).append(shift)
         return shift
 
     def list_for_user(self, user_id):
         return list(self.shifts.get(user_id, []))
+
+    def get(self, user_id, shift_id):
+        return next((s for s in self.shifts.get(user_id, []) if s.id == shift_id), None)
+
+    def update(self, user_id, shift_id, workplace_name, work_date, start_time, end_time):
+        if self.get(user_id, shift_id) is None:
+            return None
+        new = WorkShift(shift_id, workplace_name, work_date, start_time, end_time, datetime.now())
+        self.shifts[user_id] = [new if s.id == shift_id else s for s in self.shifts[user_id]]
+        return new
 
     def remove(self, user_id, shift_id):
         before = self.shifts.get(user_id, [])

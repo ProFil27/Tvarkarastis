@@ -89,6 +89,7 @@ CREATE TABLE work_shifts (
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     is_changeable BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at TIMESTAMP NOT NULL DEFAULT now(),
     CONSTRAINT work_shift_time_check CHECK (end_time > start_time)
 );
 

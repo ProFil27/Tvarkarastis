@@ -58,3 +58,61 @@ def test_user_cannot_remove_another_users_shift_over_http():
     other.post("/work-shifts/1/remove")
 
     assert "Kavine" in owner.get("/work-shifts/").get_data(as_text=True)
+
+
+def test_update_changes_the_shift_validates_and_notifies():
+    changed = []
+    service = WorkShiftService(fakes.FakeWorkShiftRepository(), on_change=changed.append)
+    shift = service.add_shift(1, "Kavine", "2026-10-26", "10:00", "14:00")
+
+    updated = service.update_shift(1, shift.id, "UAB Pavyzdys", "2026-10-28", "12:30", "16:00")
+
+    assert (updated.workplace_name, updated.work_date.isoformat(), updated.start_time.hour, updated.end_time.hour) == (
+        "UAB Pavyzdys", "2026-10-28", 12, 16)
+    assert service.get_shift(1, shift.id) == updated and updated.updated_at >= shift.updated_at
+    assert changed == [1, 1]
+
+    with pytest.raises(ValidationFailed) as exc:
+        service.update_shift(1, shift.id, "x" * 101, "nope", "18:00", "10:00")
+    assert exc.value.errors == {"workplace_name": "too_long", "work_date": "invalid_date", "end_time": "end_not_after_start"}
+    assert service.get_shift(1, shift.id) == updated and changed == [1, 1]  # invalid edit changes nothing
+
+
+def test_a_user_cannot_read_or_change_another_users_shift():
+    changed = []
+    service = WorkShiftService(fakes.FakeWorkShiftRepository(), on_change=changed.append)
+    shift = service.add_shift(1, "Kavine", "2026-10-26", "10:00", "14:00")
+    changed.clear()
+
+    assert service.get_shift(2, shift.id) is None
+    assert service.update_shift(2, shift.id, "Kita", "2026-10-26", "10:00", "14:00") is None
+    assert changed == [] and service.get_shift(1, shift.id).workplace_name == "Kavine"
+
+
+def test_edit_flow_over_http_shows_the_form_filled_and_saves_the_change():
+    service = WorkShiftService(fakes.FakeWorkShiftRepository())
+    client = logged_in_client(service)
+    client.post("/work-shifts/add", data=SHIFT_FORM)
+
+    page = client.get("/work-shifts/1/edit").get_data(as_text=True)
+    assert "Keisti pamainą" in page and 'value="Kavine"' in page and 'value="2026-10-26"' in page
+    assert 'value="10:00"' in page and ">Keisti</a>" in page
+
+    invalid = client.post("/work-shifts/1/edit", data={**SHIFT_FORM, "start_time": "18:00"})
+    assert "vėlesnis už pradžios laiką" in invalid.get_data(as_text=True)
+
+    assert client.post("/work-shifts/1/edit", data={**SHIFT_FORM, "workplace_name": "Naujas darbas"}).status_code == 302
+    listing = client.get("/work-shifts/").get_data(as_text=True)
+    assert "Naujas darbas" in listing and "Kavine" not in listing
+
+
+def test_user_cannot_edit_another_users_shift_over_http():
+    service = WorkShiftService(fakes.FakeWorkShiftRepository())
+    owner = logged_in_client(service, user_id=1)
+    owner.post("/work-shifts/add", data=SHIFT_FORM)
+
+    other = logged_in_client(service, user_id=2)
+    assert other.get("/work-shifts/1/edit").status_code == 302
+    other.post("/work-shifts/1/edit", data={**SHIFT_FORM, "workplace_name": "Hacked"})
+
+    assert "Kavine" in owner.get("/work-shifts/").get_data(as_text=True)

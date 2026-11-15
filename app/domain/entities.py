@@ -94,6 +94,7 @@ class WorkShift:
     work_date: date
     start_time: time
     end_time: time
+    updated_at: datetime | None = None  # last manual change (used by the calendar sync)
 
     @property
     def weekday(self) -> Weekday:

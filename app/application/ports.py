@@ -90,6 +90,16 @@ class WorkShiftRepository(Protocol):
 
     def list_for_user(self, user_id: int) -> list[WorkShift]: ...
 
+    def get(self, user_id: int, shift_id: int) -> WorkShift | None:
+        """The shift only if it belongs to the user (N-21)."""
+        ...
+
+    def update(
+        self, user_id: int, shift_id: int, workplace_name: str, work_date: date, start_time: time, end_time: time
+    ) -> WorkShift | None:
+        """Change the user's shift and set its change time; None if it is not theirs."""
+        ...
+
     def remove(self, user_id: int, shift_id: int) -> bool:
         """Remove the shift only if it belongs to the user (N-21)."""
         ...

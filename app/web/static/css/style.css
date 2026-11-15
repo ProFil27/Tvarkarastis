@@ -137,3 +137,5 @@ table.review td:last-child{text-align:center}
 .btn-sm{padding:7px 14px;font-size:14px}
 .row-editing td{background:var(--pri-l)}
 .dialog{max-width:520px;margin:40px auto;box-shadow:0 12px 32px rgba(20,24,43,.18)}
+.form-actions{display:flex;gap:12px;margin-top:25px}
+.form-actions .btn{height:46px}
