@@ -9,10 +9,12 @@ changed or deleted (N-45); a record that already has a link is updated, never cr
 import hmac
 import logging
 import secrets
+import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
+from app.application.background import CoalescingRunner, start_thread
 from app.application.calendar_events import study_event_body, work_shift_body
 from app.application.calendar_texts import calendar_error_text
 from app.application.errors import CalendarError
@@ -71,6 +73,7 @@ class CalendarStatusReport:
     last_success_at: datetime | None = None
     last_operation: SyncOperation | None = None  # the most recent finished run, successful or not
     last_error: SyncOperation | None = None  # set only when that run failed
+    syncing: bool = False  # an update after a change is running in the background
 
 
 def _utc_now() -> datetime:
@@ -98,6 +101,7 @@ class CalendarSyncService:
         notifications: NotificationRepository,
         now: Callable[[], datetime] = local_now,
         utc_now: Callable[[], datetime] = _utc_now,
+        background: bool = False,
     ):
         self._provider = provider
         self._accounts = accounts
@@ -109,6 +113,11 @@ class CalendarSyncService:
         self._notifications = notifications
         self._now = now  # local time, shown to the user and sent to the calendar (N-29)
         self._utc_now = utc_now  # token expiry is kept in UTC
+        # Updates after a change run in the background (`background=True`) so saving stays instant;
+        # tests run them inline.
+        self._runner = CoalescingRunner(self._update_after_change, start_thread if background else lambda work: work())
+        self._locks: dict[int, threading.Lock] = {}
+        self._locks_guard = threading.Lock()
 
     # ------------------------------------------------------------------ connecting (F-24, F-25)
 
@@ -191,14 +200,21 @@ class CalendarSyncService:
         account = self._accounts.get(user_id)
         if account is None or account.status != CalendarAccountStatus.CONNECTED:
             return
+        if not self._operations.has_export(user_id):
+            return
+        self._runner.request(user_id)
+
+    def _update_after_change(self, user_id: int) -> None:
         try:
-            if not self._operations.has_export(user_id):
-                return
             self._reconcile(user_id, SyncOperationType.UPDATE)
         except CalendarError:
             pass  # recorded and notified by the run itself
         except Exception:  # noqa: BLE001 - the saved change must survive any calendar problem
             log.exception("Calendar update after a change failed")
+
+    def _lock_for(self, user_id: int) -> threading.Lock:
+        with self._locks_guard:
+            return self._locks.setdefault(user_id, threading.Lock())
 
     def _notify_failure(self, user_id: int, code: str) -> None:
         """One system notification per distinct problem until the user dismisses it (F-31)."""
@@ -208,6 +224,10 @@ class CalendarSyncService:
         self._notifications.add(user_id, None, message, NotificationType.SYNC_ERROR)
 
     def _reconcile(self, user_id: int, operation_type: SyncOperationType) -> SyncResult:
+        with self._lock_for(user_id):  # a manual run and the background update never overlap (no duplicates)
+            return self._reconcile_locked(user_id, operation_type)
+
+    def _reconcile_locked(self, user_id: int, operation_type: SyncOperationType) -> SyncResult:
         account = self._connected_account(user_id)
         operation_id = self._operations.start(user_id, operation_type, self._now())
         created = updated = deleted = 0
@@ -344,4 +364,5 @@ class CalendarSyncService:
             last_success_at=last_success.finished_at if last_success else None,
             last_operation=last,
             last_error=last if last is not None and last.status == SyncStatus.ERROR else None,
+            syncing=self._runner.is_busy(user_id),
         )

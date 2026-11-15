@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Kalendorius{% endblock %}
+{% block head %}{% if report.syncing %}<meta http-equiv="refresh" content="3">{% endif %}{% endblock %}
 {% block content %}
     <div class="head">
         <div>
@@ -52,6 +53,8 @@
                 <span class="badge bad">● Reikia prisijungti iš naujo</span>
             {% elif report.status.name != 'CONNECTED' %}
                 <span class="badge n">Neprijungta</span>
+            {% elif report.syncing %}
+                <span class="badge n">⟳ Sinchronizuojama…</span>
             {% elif not report.exported %}
                 <span class="badge n">Dar neeksportuota</span>
             {% elif report.last_error %}

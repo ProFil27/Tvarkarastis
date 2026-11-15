@@ -9,7 +9,7 @@ from typing import Iterator
 
 import psycopg2
 import psycopg2.extras
-from psycopg2.pool import SimpleConnectionPool
+from psycopg2.pool import ThreadedConnectionPool
 
 from app.domain.rules import LOCAL_TIMEZONE
 from app.infrastructure.config import Settings
@@ -17,7 +17,7 @@ from app.infrastructure.config import Settings
 
 class Database:
     def __init__(self, settings: Settings, min_connections: int = 1, max_connections: int = 10):
-        self._pool = SimpleConnectionPool(
+        self._pool = ThreadedConnectionPool(  # the web server and the background sync use it from several threads
             min_connections,
             max_connections,
             host=settings.db_host,
