@@ -10,6 +10,7 @@ import hmac
 import logging
 import secrets
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Callable
@@ -104,6 +105,7 @@ class CalendarSyncService:
         now: Callable[[], datetime] = local_now,
         utc_now: Callable[[], datetime] = _utc_now,
         background: bool = False,
+        workers: int = 1,
     ):
         self._provider = provider
         self._accounts = accounts
@@ -119,6 +121,8 @@ class CalendarSyncService:
         # Updates after a change run in the background (`background=True`) so saving stays instant;
         # tests run them inline.
         self._runner = CoalescingRunner(self._update_after_change, start_thread if background else lambda work: work())
+        self._workers = max(1, workers)  # calendar requests of one run that are sent side by side (N-35)
+        self._refresh_lock = threading.Lock()
         self._locks: dict[int, threading.Lock] = {}
         self._locks_guard = threading.Lock()
 
@@ -264,28 +268,54 @@ class CalendarSyncService:
                     )
                 wanted.append((body, for_series.get(series.id), series.updated_at, None, None, series.id))
 
+            creates, updates, deletes = [], [], []
             for body, link, changed_at, event_id, shift_id, series_id in wanted:
                 if body is None:
                     if link is not None:  # nothing left to show (e.g. every shift of a series changed or removed)
-                        self._call(run, lambda t, g=link.google_event_id: self._provider.delete_event(t, g))
-                        self._links.remove_link(link.id)
-                        deleted += 1
+                        deletes.append(link)
                     continue  # a study event that never takes place inside its schedule's validity period
                 if link is None:
-                    google_id = self._call(run, lambda t, b=body: self._provider.create_event(t, b))
-                    self._links.add_link(user_id, event_id, shift_id, google_id, self._now(), series_id)
-                    created += 1
+                    creates.append((body, event_id, shift_id, series_id))
                 elif changed_at is not None and changed_at > link.synced_at:
-                    if self._update_or_recreate(run, link, body):
-                        updated += 1
-                    else:
-                        created += 1
+                    updates.append((link, body))
+            deletes += [link for link in links if link.is_orphan]  # the local record is gone: delete our event only
 
-            for link in links:
-                if link.is_orphan:  # the local record was removed: delete only the event this system created
-                    self._call(run, lambda t, g=link.google_event_id: self._provider.delete_event(t, g))
-                    self._links.remove_link(link.id)
-                    deleted += 1
+            # The requests of each step are independent, so they are sent side by side. Their results are recorded
+            # here one by one, so every event that was created gets its link even if a later request fails (N-32).
+            outcomes = self._send([lambda t, b=body: self._provider.create_event(t, b) for body, *_ in creates], run)
+            error = None
+            for (body, event_id, shift_id, series_id), (google_id, failure) in zip(creates, outcomes):
+                if failure is not None:
+                    error = error or failure
+                    continue
+                self._links.add_link(user_id, event_id, shift_id, google_id, self._now(), series_id)
+                created += 1
+            if error:
+                raise error
+
+            outcomes = self._send([self._update_task(link, body) for link, body in updates], run)
+            for (link, body), (result, failure) in zip(updates, outcomes):
+                if failure is not None:
+                    error = error or failure
+                elif result is None:
+                    self._links.touch_link(link.id, self._now())
+                    updated += 1
+                else:  # the user deleted the event in Google: it was created again
+                    self._links.replace_google_event(link.id, result, self._now())
+                    created += 1
+            if error:
+                raise error
+
+            outcomes = self._send([lambda t, g=link.google_event_id: self._provider.delete_event(t, g)
+                                   for link in deletes], run)
+            for link, (_, failure) in zip(deletes, outcomes):
+                if failure is not None:
+                    error = error or failure
+                    continue
+                self._links.remove_link(link.id)
+                deleted += 1
+            if error:
+                raise error
         except CalendarError as exc:
             self._fail(account, operation_id, exc.code, str(exc), created, updated, deleted)
             raise
@@ -297,18 +327,43 @@ class CalendarSyncService:
         self._operations.finish(operation_id, SyncStatus.SUCCESS, self._now(), created, updated, deleted)
         return SyncResult(created, updated, deleted)
 
-    def _update_or_recreate(self, run: _Run, link: CalendarEventLink, body: dict) -> bool:
-        """Update the linked Google event; if the user deleted it in Google, create it again. True if updated."""
-        try:
-            self._call(run, lambda t: self._provider.update_event(t, link.google_event_id, body))
-        except CalendarError as exc:
-            if exc.code != CalendarError.NOT_FOUND:
-                raise
-            google_id = self._call(run, lambda t: self._provider.create_event(t, body))
-            self._links.replace_google_event(link.id, google_id, self._now())
-            return False
-        self._links.touch_link(link.id, self._now())
-        return True
+    def _update_task(self, link: CalendarEventLink, body: dict) -> Callable[[CalendarTokens], str | None]:
+        """Request that updates the linked Google event; if the user deleted it in Google it is created again and
+        the id of the new event is returned (None when the update worked)."""
+
+        def update(tokens: CalendarTokens) -> str | None:
+            try:
+                self._provider.update_event(tokens, link.google_event_id, body)
+            except CalendarError as exc:
+                if exc.code != CalendarError.NOT_FOUND:
+                    raise
+                return self._provider.create_event(tokens, body)
+            return None
+
+        return update
+
+    def _send(
+        self, requests: list[Callable[[CalendarTokens], object]], run: _Run
+    ) -> list[tuple[object, Exception | None]]:
+        """Send independent calendar requests and return (result, error) per request, in order.
+
+        With several workers the requests run side by side; with one they run in turn and stop at the first error.
+        """
+        def one(request):
+            try:
+                return self._call(run, request), None
+            except Exception as exc:  # noqa: BLE001 - reported to the caller, which records what succeeded first
+                return None, exc
+
+        if self._workers == 1 or len(requests) < 2:
+            outcomes = []
+            for request in requests:
+                outcomes.append(one(request))
+                if outcomes[-1][1] is not None:
+                    break
+            return outcomes
+        with ThreadPoolExecutor(max_workers=self._workers) as pool:
+            return list(pool.map(one, requests))
 
     def _fail(
         self,
@@ -351,6 +406,10 @@ class CalendarSyncService:
         return run
 
     def _refresh(self, run: _Run) -> None:
+        with self._refresh_lock:
+            self._refresh_locked(run)
+
+    def _refresh_locked(self, run: _Run) -> None:
         refreshed = self._provider.refresh(run.tokens)
         self._accounts.update_tokens(
             run.user_id,

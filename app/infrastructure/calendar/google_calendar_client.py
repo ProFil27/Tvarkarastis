@@ -6,6 +6,7 @@ another calendar means replacing this module only.
 
 import logging
 import os
+import threading
 import time
 from datetime import datetime
 from typing import Callable
@@ -15,7 +16,6 @@ import google.auth.exceptions
 import httplib2
 import requests
 from google.auth.transport.requests import Request
-from google.oauth2 import id_token
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
@@ -31,6 +31,7 @@ log = logging.getLogger(__name__)
 
 AUTH_URI = "https://accounts.google.com/o/oauth2/auth"
 TOKEN_URI = "https://oauth2.googleapis.com/token"
+USERINFO_URI = "https://openidconnect.googleapis.com/v1/userinfo"
 # Minimal access (N-44): calendar events and the account's e-mail address only.
 SCOPES = [
     "openid",
@@ -56,7 +57,8 @@ class GoogleCalendarClient:
         self._redirect_uri = redirect_uri
         self._sleep = sleep
         self._retry_delays = retry_delays
-        self._services: dict[str, object] = {}  # access token -> API client, reused within a run
+        # The API client is not thread-safe: every thread keeps its own (access token -> client).
+        self._local = threading.local()
         host = urlparse(redirect_uri).hostname
         if redirect_uri.startswith("http://") and host in ("127.0.0.1", "localhost"):
             # The local prototype is reached over plain http on this computer only (N-27).
@@ -96,16 +98,23 @@ class GoogleCalendarClient:
 
         credentials = flow.credentials
         return CalendarTokens(
-            credentials.token, credentials.refresh_token, credentials.expiry, self._email(credentials.id_token)
+            credentials.token, credentials.refresh_token, credentials.expiry, self._email(credentials.token)
         )
 
-    def _email(self, token: str | None) -> str | None:
-        """The Google account's e-mail from the verified ID token; None if it cannot be read."""
-        if not token:
-            return None
+    @staticmethod
+    def _email(access_token: str) -> str | None:
+        """The Google account's e-mail address (scope userinfo.email); None if it cannot be read.
+
+        Asking Google with the access token is more robust than verifying the ID token locally, which fails when the
+        computer's clock is a few seconds off.
+        """
         try:
-            return id_token.verify_oauth2_token(token, Request(), self._client_id).get("email")
-        except (ValueError, google.auth.exceptions.GoogleAuthError) as exc:
+            response = requests.get(
+                USERINFO_URI, headers={"Authorization": f"Bearer {access_token}"}, timeout=10
+            )
+            response.raise_for_status()
+            return response.json().get("email")
+        except (requests.RequestException, ValueError) as exc:
             log.warning("Could not read the Google account e-mail: %s", type(exc).__name__)
             return None
 
@@ -131,13 +140,16 @@ class GoogleCalendarClient:
     # ------------------------------------------------------------------ events (F-26, F-28, F-29)
 
     def _service(self, tokens: CalendarTokens):
-        service = self._services.get(tokens.access_token)
+        services = getattr(self._local, "services", None)
+        if services is None:
+            services = self._local.services = {}
+        service = services.get(tokens.access_token)
         if service is None:
-            self._services.clear()  # keep at most one client; older tokens are no longer used
+            services.clear()  # keep at most one client per thread; older tokens are no longer used
             service = build(
                 "calendar", "v3", credentials=Credentials(token=tokens.access_token), cache_discovery=False
             )
-            self._services[tokens.access_token] = service
+            services[tokens.access_token] = service
         return service
 
     def create_event(self, tokens: CalendarTokens, body: dict) -> str:

@@ -94,6 +94,7 @@ def build_services(settings: Settings) -> Services:
         shift_series,
         notifications,
         background=True,
+        workers=8,
     )
     change_notifier.subscribe(calendar.on_data_changed)  # after the conflict check (F-28)
 
