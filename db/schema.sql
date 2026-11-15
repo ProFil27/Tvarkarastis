@@ -17,6 +17,8 @@ CREATE TYPE conflict_status AS ENUM ('AKTYVUS', 'IGNORUOTAS', 'ISSPRESTAS');
 
 CREATE TYPE ai_request_type AS ENUM ('ATPAZINIMAS', 'ANALIZE');
 
+CREATE TYPE notification_type AS ENUM ('KONFLIKTAS', 'SISTEMOS_KLAIDA', 'PRIMINIMAS', 'SINCH_KLAIDA');
+
 -- On which study weeks an event takes place: every week, only week 1 or only week 2
 CREATE TYPE week_pattern AS ENUM ('KIEKVIENA', 'PIRMA', 'ANTRA');
 
@@ -112,12 +114,13 @@ CREATE TABLE conflicts (
     status conflict_status NOT NULL DEFAULT 'AKTYVUS'
 );
 
--- Notification: in-system message to the user about a conflict (KVK)
+-- Notification: in-system message to the user (conflict, system error, reminder, sync error)
 CREATE TABLE notifications (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     conflict_id INTEGER REFERENCES conflicts(id) ON DELETE CASCADE,
     message TEXT NOT NULL,
+    notification_type notification_type NOT NULL DEFAULT 'KONFLIKTAS',
     created_at TIMESTAMP NOT NULL DEFAULT now(),
     is_read BOOLEAN NOT NULL DEFAULT FALSE
 );

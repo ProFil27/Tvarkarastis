@@ -1,4 +1,4 @@
-from app.domain.entities import Conflict, DetectedConflict
+from app.domain.entities import Conflict, ConflictStatus, DetectedConflict
 from app.infrastructure.database import Database
 
 
@@ -11,26 +11,28 @@ class PostgresConflictRepository:
             cur.execute(
                 """
                 SELECT id, study_event_id, work_shift_id, overlap_minutes
-                FROM conflicts WHERE user_id = %s AND status = 'AKTYVUS'
+                FROM conflicts WHERE user_id = %s AND status = %s
                 """,
-                (user_id,),
+                (user_id, ConflictStatus.ACTIVE.value),
             )
             return [Conflict(**row) for row in cur.fetchall()]
 
     def replace_active(self, user_id: int, detected: list[DetectedConflict]) -> list[Conflict]:
-        """Keep existing pairs, delete stale ones, insert new ones; return the new ones."""
+        """Keep existing pairs, mark stale ones resolved, insert new ones; return the new ones."""
         created: list[Conflict] = []
         with self._db.cursor(commit=True) as cur:
             cur.execute(
-                "SELECT id, study_event_id, work_shift_id FROM conflicts WHERE user_id = %s AND status = 'AKTYVUS'",
-                (user_id,),
+                "SELECT id, study_event_id, work_shift_id FROM conflicts WHERE user_id = %s AND status = %s",
+                (user_id, ConflictStatus.ACTIVE.value),
             )
             existing = {(r["study_event_id"], r["work_shift_id"]): r["id"] for r in cur.fetchall()}
             detected_keys = {(d.study_event_id, d.work_shift_id) for d in detected}
 
             for key, conflict_id in existing.items():
                 if key not in detected_keys:
-                    cur.execute("DELETE FROM conflicts WHERE id = %s", (conflict_id,))
+                    cur.execute(
+                        "UPDATE conflicts SET status = %s WHERE id = %s", (ConflictStatus.RESOLVED.value, conflict_id)
+                    )
 
             for item in detected:
                 key = (item.study_event_id, item.work_shift_id)

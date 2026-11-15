@@ -32,6 +32,19 @@ class PdfStatus(Enum):
     FAILED = "KLAIDA"
 
 
+class ConflictStatus(Enum):
+    ACTIVE = "AKTYVUS"
+    IGNORED = "IGNORUOTAS"
+    RESOLVED = "ISSPRESTAS"
+
+
+class NotificationType(Enum):
+    CONFLICT = "KONFLIKTAS"
+    SYSTEM_ERROR = "SISTEMOS_KLAIDA"
+    REMINDER = "PRIMINIMAS"
+    SYNC_ERROR = "SINCH_KLAIDA"
+
+
 class AiRequestType(Enum):
     RECOGNITION = "ATPAZINIMAS"
     ANALYSIS = "ANALIZE"
@@ -107,3 +120,4 @@ class Conflict:
 class Notification:
     id: int
     message: str
+    notification_type: NotificationType = NotificationType.CONFLICT

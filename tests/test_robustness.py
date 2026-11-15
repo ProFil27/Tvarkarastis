@@ -42,6 +42,19 @@ def test_change_notifier_calls_every_subscriber():
     assert seen == [("a", 7), ("b", 7)]
 
 
+def test_a_failing_subscriber_does_not_block_the_others_or_the_caller():
+    seen = []
+    notifier = ChangeNotifier()
+
+    def broken(user_id):
+        raise RuntimeError("calendar is down")
+
+    notifier.subscribe(broken)
+    notifier.subscribe(seen.append)
+    notifier(3)  # must not raise: the edit is already saved (N-34)
+    assert seen == [3]
+
+
 def test_time_parsing_accepts_only_24h_hh_mm():
     assert parse_time("09:05").minute == 5
     assert parse_time("24:00") is None and parse_time("9") is None and parse_time(None) is None

@@ -14,6 +14,7 @@ from app.domain.entities import (
     Conflict,
     DetectedConflict,
     Notification,
+    NotificationType,
     PdfDocument,
     PdfStatus,
     StudyEvent,
@@ -82,12 +83,21 @@ class ConflictRepository(Protocol):
     def list_active(self, user_id: int) -> list[Conflict]: ...
 
     def replace_active(self, user_id: int, detected: list[DetectedConflict]) -> list[Conflict]:
-        """Synchronise active conflicts with `detected`; return only the newly created ones."""
+        """Synchronise active conflicts with `detected`; return only the newly created ones.
+
+        Active conflicts that are no longer detected are marked resolved (KVK-7), not deleted.
+        """
         ...
 
 
 class NotificationRepository(Protocol):
-    def add(self, user_id: int, conflict_id: int | None, message: str) -> None: ...
+    def add(
+        self,
+        user_id: int,
+        conflict_id: int | None,
+        message: str,
+        notification_type: NotificationType = NotificationType.CONFLICT,
+    ) -> None: ...
 
     def list_unread(self, user_id: int) -> list[Notification]: ...
 

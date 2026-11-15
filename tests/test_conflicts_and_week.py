@@ -3,7 +3,7 @@ from datetime import date, time
 from app.application.conflict_service import ConflictService
 from app.application.week_view_service import WeekViewService
 from app.container import Services
-from app.domain.entities import DetectedConflict, StudyEvent, StudyEventType, WorkShift
+from app.domain.entities import DetectedConflict, NotificationType, StudyEvent, StudyEventType, WorkShift
 from app.domain.overlap import overlap_minutes
 from app.domain.weekday import Weekday
 from app.web import create_app
@@ -72,6 +72,37 @@ def test_conflict_check_never_raises_and_keeps_data_on_failure():
     shifts.add(1, "Kavine", fakes.MONDAY, time(10, 0), time(14, 0))
     service.run_check(1)
     assert conflicts.list_active(1) == [] and ai_log.requests[0]["error"]  # failure is logged, data unchanged
+
+
+def test_conflicts_that_no_longer_overlap_are_marked_resolved_and_not_notified_again():
+    analyzer = fakes.FakeAnalyzer([DetectedConflict(1, 1, 30)])
+    service, schedules, shifts, conflicts, notifications, _ = make_conflicts(analyzer)
+    schedules.add(1, None, date.today(), date.today(), [sample_event()])
+    shifts.add(1, "Kavine", fakes.MONDAY, time(10, 0), time(14, 0))
+    service.run_check(1)
+    assert len(conflicts.list_active(1)) == 1 and len(notifications.list_unread(1)) == 1
+
+    analyzer.detected = []  # the lecture was moved: nothing overlaps any more
+    service.run_check(1)
+
+    assert conflicts.list_active(1) == [] and [c.id for c in conflicts.resolved] == [1]
+    assert len(notifications.list_unread(1)) == 1  # no new notification for a resolved conflict
+
+
+def test_failed_check_keeps_old_conflicts_and_tells_the_user_once():
+    analyzer = fakes.FakeAnalyzer([DetectedConflict(1, 1, 30)])
+    service, schedules, shifts, conflicts, notifications, _ = make_conflicts(analyzer)
+    schedules.add(1, None, date.today(), date.today(), [sample_event()])
+    shifts.add(1, "Kavine", fakes.MONDAY, time(10, 0), time(14, 0))
+    service.run_check(1)
+
+    analyzer.fail = True
+    service.run_check(1)
+    service.run_check(1)
+
+    assert len(conflicts.list_active(1)) == 1 and conflicts.resolved == []  # previous conflicts unchanged (KVK-8)
+    errors = [n for n in notifications.list_unread(1) if n.notification_type == NotificationType.SYSTEM_ERROR]
+    assert [n.message for n in errors] == ["Konfliktų paieška nepavyko. Bandykite dar kartą."]
 
 
 def test_week_view_marks_conflicts_and_normalizes_to_monday():

@@ -9,6 +9,7 @@ from app.domain.entities import (
     Conflict,
     DetectedConflict,
     Notification,
+    NotificationType,
     PdfDocument,
     PdfStatus,
     StudyEvent,
@@ -93,6 +94,7 @@ class FakeWorkShiftRepository:
 class FakeConflictRepository:
     def __init__(self):
         self.active: dict[int, list[Conflict]] = {}
+        self.resolved: list[Conflict] = []  # conflicts that disappeared (status ISSPRESTAS)
         self._next_id = 1
 
     def list_active(self, user_id):
@@ -100,6 +102,8 @@ class FakeConflictRepository:
 
     def replace_active(self, user_id, detected):
         existing = {(c.study_event_id, c.work_shift_id): c for c in self.active.get(user_id, [])}
+        detected_keys = {(d.study_event_id, d.work_shift_id) for d in detected}
+        self.resolved.extend(c for key, c in existing.items() if key not in detected_keys)
         result, created = [], []
         for item in detected:
             key = (item.study_event_id, item.work_shift_id)
@@ -118,11 +122,17 @@ class FakeNotificationRepository:
     def __init__(self):
         self.items: list[dict] = []
 
-    def add(self, user_id, conflict_id, message):
-        self.items.append({"id": len(self.items) + 1, "user_id": user_id, "message": message, "read": False})
+    def add(self, user_id, conflict_id, message, notification_type=NotificationType.CONFLICT):
+        self.items.append(
+            {"id": len(self.items) + 1, "user_id": user_id, "message": message, "read": False, "type": notification_type}
+        )
 
     def list_unread(self, user_id):
-        return [Notification(i["id"], i["message"]) for i in self.items if i["user_id"] == user_id and not i["read"]]
+        return [
+            Notification(i["id"], i["message"], i["type"])
+            for i in self.items
+            if i["user_id"] == user_id and not i["read"]
+        ]
 
     def mark_read(self, user_id, notification_id):
         for item in self.items:
