@@ -11,6 +11,7 @@ from app.application.auth_service import AuthService
 from app.application.change_notifier import ChangeNotifier
 from app.application.conflict_service import ConflictService
 from app.application.schedule_import_service import ScheduleImportService
+from app.application.study_event_service import StudyEventService
 from app.application.week_view_service import WeekViewService
 from app.application.work_shift_service import WorkShiftService
 from app.infrastructure.ai.claude_client import ClaudeClient
@@ -35,6 +36,7 @@ class Services:
 
     auth: AuthService | None = None
     schedule_import: ScheduleImportService | None = None
+    study_events: StudyEventService | None = None
     work_shifts: WorkShiftService | None = None
     conflicts: ConflictService | None = None
     week_view: WeekViewService | None = None
@@ -57,6 +59,7 @@ def build_services(settings: Settings) -> Services:
         PostgresPdfDocumentRepository(database), schedules, ScheduleRecognizer(ai_client), ai_log, change_notifier
     )
 
+    study_events = StudyEventService(schedules, change_notifier)
     work_shifts = WorkShiftService(shifts, change_notifier)
 
     conflict_repository = PostgresConflictRepository(database)
@@ -70,6 +73,7 @@ def build_services(settings: Settings) -> Services:
     return Services(
         auth=auth,
         schedule_import=schedule_import,
+        study_events=study_events,
         work_shifts=work_shifts,
         conflicts=conflicts,
         week_view=week_view,

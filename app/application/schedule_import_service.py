@@ -1,57 +1,20 @@
 """Timetable import: upload, AI recognition, review and confirmation (F-03..F-08)."""
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Callable
 
 from app.application.errors import RecognitionFailed, RowsValidationFailed, ValidationFailed
+from app.application.event_rows import ReviewRow, row_to_event, validate_row
 from app.application.ports import (
     AiRequestLog,
     PdfDocumentRepository,
     ScheduleRecognizer,
     ScheduleRepository,
 )
-from app.application.validation import (
-    ChangeListener,
-    format_time,
-    ignore_changes,
-    parse_date,
-    parse_time,
-    validate_time_range,
-)
-from app.domain.entities import AiRequestType, PdfStatus, StudyEvent, StudyEventType, WeekPattern
+from app.application.validation import ChangeListener, ignore_changes, parse_date
+from app.domain.entities import AiRequestType, PdfStatus
 from app.domain.rules import MAX_PDF_SIZE_BYTES, SEMESTER_LENGTH_DAYS
-from app.domain.weekday import Weekday
-
-
-@dataclass(frozen=True)
-class ReviewRow:
-    """One editable row of the review table. All values are raw form strings."""
-
-    subject: str
-    event_type: str
-    day_of_week: str
-    start_time: str
-    end_time: str
-    room: str
-    is_mandatory: bool
-    week_pattern: str = WeekPattern.EVERY_WEEK.value
-
-    @classmethod
-    def from_event(cls, event: StudyEvent) -> "ReviewRow":
-        return cls(
-            subject=event.subject_name,
-            event_type=event.event_type.value,
-            day_of_week=event.weekday.value,
-            start_time=format_time(event.start_time),
-            end_time=format_time(event.end_time),
-            room=event.room or "",
-            is_mandatory=event.is_mandatory,
-            week_pattern=event.week_pattern.value,
-        )
-
-    def to_dict(self) -> dict:
-        return asdict(self)
 
 
 @dataclass(frozen=True)
@@ -108,7 +71,7 @@ class ScheduleImportService:
 
     def validate_rows(self, rows: list[ReviewRow]) -> list[dict[str, str]]:
         """One {field: error_code} dict per row; an empty dict means the row is valid."""
-        return [self._validate_row(row) for row in rows]
+        return [validate_row(row) for row in rows]
 
     def confirm(
         self, user_id: int, pdf_document_id: int, rows: list[ReviewRow], valid_from: str = "", valid_to: str = ""
@@ -135,7 +98,7 @@ class ScheduleImportService:
             pdf_document_id=pdf_document_id,
             valid_from=period[0],
             valid_to=period[1],
-            events=[self._to_event(row) for row in rows],
+            events=[row_to_event(row) for row in rows],
         )
         self._pdf_documents.set_status(pdf_document_id, PdfStatus.CONFIRMED)
         self._on_schedule_saved(user_id)
@@ -168,30 +131,3 @@ class ScheduleImportService:
             raise ValidationFailed({"file": "too_large"})
         if not consent_given:
             raise ValidationFailed({"file": "consent_required"})
-
-    @staticmethod
-    def _validate_row(row: ReviewRow) -> dict[str, str]:
-        errors = validate_time_range(row.start_time, row.end_time)
-        if not row.subject or not row.subject.strip():
-            errors["subject"] = "required"
-        if row.event_type not in {t.value for t in StudyEventType}:
-            errors["event_type"] = "invalid_choice"
-        if Weekday.from_code(row.day_of_week) is None:
-            errors["day_of_week"] = "invalid_choice"
-        if row.week_pattern not in {p.value for p in WeekPattern}:
-            errors["week_pattern"] = "invalid_choice"
-        return errors
-
-    @staticmethod
-    def _to_event(row: ReviewRow) -> StudyEvent:
-        return StudyEvent(
-            id=None,
-            subject_name=row.subject.strip(),
-            event_type=StudyEventType(row.event_type),
-            weekday=Weekday(row.day_of_week),
-            start_time=parse_time(row.start_time),
-            end_time=parse_time(row.end_time),
-            room=row.room.strip() or None,
-            is_mandatory=row.is_mandatory,
-            week_pattern=WeekPattern(row.week_pattern),
-        )

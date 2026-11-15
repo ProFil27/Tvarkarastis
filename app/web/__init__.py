@@ -33,10 +33,11 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     from app.web.auth.routes import auth_bp
     from app.web.home import home_bp
     from app.web.schedule.routes import schedule_bp
+    from app.web.study_events.routes import study_events_bp
     from app.web.week.routes import week_bp
     from app.web.work_shifts.routes import work_shifts_bp
 
-    for blueprint in (home_bp, auth_bp, schedule_bp, work_shifts_bp, week_bp):
+    for blueprint in (home_bp, auth_bp, schedule_bp, study_events_bp, work_shifts_bp, week_bp):
         app.register_blueprint(blueprint)
 
     @app.errorhandler(Exception)

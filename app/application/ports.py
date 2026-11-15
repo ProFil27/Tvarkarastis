@@ -66,6 +66,22 @@ class ScheduleRepository(Protocol):
         """All study events of the user; if a week is given, only schedules valid in that week."""
         ...
 
+    def get_event(self, user_id: int, event_id: int) -> StudyEvent | None:
+        """The event only if it belongs to the user (N-21)."""
+        ...
+
+    def add_event(self, user_id: int, event: StudyEvent, default_from: date, default_to: date) -> StudyEvent:
+        """Add an event to the user's latest schedule; create a schedule valid default_from..default_to if none."""
+        ...
+
+    def update_event(self, user_id: int, event_id: int, event: StudyEvent) -> StudyEvent | None:
+        """Replace all editable fields of the user's event and set its change time; None if it is not theirs."""
+        ...
+
+    def remove_event(self, user_id: int, event_id: int) -> bool:
+        """Remove the event only if it belongs to the user."""
+        ...
+
 
 class WorkShiftRepository(Protocol):
     def add(

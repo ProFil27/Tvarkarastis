@@ -1,6 +1,6 @@
 """Lithuanian user-facing messages for the error codes produced by services."""
 
-from app.domain.rules import MAX_PDF_SIZE_BYTES, MIN_PASSWORD_LENGTH
+from app.domain.rules import MAX_PDF_SIZE_BYTES, MAX_ROOM_LENGTH, MAX_SUBJECT_LENGTH, MIN_PASSWORD_LENGTH
 
 _MESSAGES = {
     ("name", "required"): "Vardas yra privalomas.",
@@ -14,6 +14,8 @@ _MESSAGES = {
     ("weekday", "invalid_choice"): "Pasirinkite savaitės dieną.",
     ("day_of_week", "invalid_choice"): "Pasirinkite savaitės dieną.",
     ("subject", "required"): "Dalykas yra privalomas.",
+    ("subject", "too_long"): f"Dalyko pavadinimas negali būti ilgesnis nei {MAX_SUBJECT_LENGTH} simbolių.",
+    ("room", "too_long"): f"Auditorija negali būti ilgesnė nei {MAX_ROOM_LENGTH} simbolių.",
     ("event_type", "invalid_choice"): "Pasirinkite įvykio tipą.",
     ("week_pattern", "invalid_choice"): "Pasirinkite savaitę.",
     ("valid_from", "invalid_date"): "Data turi būti formatu MMMM-mm-dd.",

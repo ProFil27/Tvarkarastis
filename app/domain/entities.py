@@ -4,7 +4,7 @@ Enum values are the codes stored in the database (defined by the specification).
 """
 
 from dataclasses import dataclass
-from datetime import date, time
+from datetime import date, datetime, time
 from enum import Enum
 
 from app.domain.weekday import Weekday
@@ -82,6 +82,7 @@ class StudyEvent:
     valid_from: date | None = None  # validity of the schedule the event belongs to (None = unknown / unlimited)
     valid_to: date | None = None
     week_pattern: WeekPattern = WeekPattern.EVERY_WEEK
+    updated_at: datetime | None = None  # last manual change (used by the calendar sync)
 
 
 @dataclass(frozen=True)

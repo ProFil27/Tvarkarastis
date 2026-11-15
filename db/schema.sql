@@ -70,6 +70,7 @@ CREATE TABLE study_events (
     room VARCHAR(100),
     is_mandatory BOOLEAN NOT NULL DEFAULT TRUE,
     week_pattern week_pattern NOT NULL DEFAULT 'KIEKVIENA',
+    updated_at TIMESTAMP NOT NULL DEFAULT now(),
     CONSTRAINT study_event_time_check CHECK (end_time > start_time)
 );
 

@@ -1,7 +1,7 @@
 """In-memory implementations of the application ports, for tests."""
 
 from dataclasses import replace
-from datetime import date, time
+from datetime import date, datetime, time
 
 from app.application.errors import AnalysisFailed, RecognitionFailed
 from app.application.ports import AnalysisResult, RecognitionResult
@@ -59,15 +59,43 @@ class FakeScheduleRepository:
     def __init__(self):
         self.events: dict[int, list[StudyEvent]] = {}
         self.saved_schedules: list[dict] = []
+        self._next_id = 0
 
     def add(self, user_id, pdf_document_id, valid_from, valid_to, events):
-        numbered = [replace(e, id=len(self.events.get(user_id, [])) + i + 1) for i, e in enumerate(events)]
+        numbered = [replace(e, id=self._new_id()) for e in events]  # validity stays as given on the event
         self.events.setdefault(user_id, []).extend(numbered)
         self.saved_schedules.append({"user_id": user_id, "valid_from": valid_from, "valid_to": valid_to})
         return len(self.saved_schedules)
 
     def list_study_events(self, user_id, week_start=None, week_end=None):
         return list(self.events.get(user_id, []))
+
+    def _new_id(self):
+        self._next_id += 1
+        return self._next_id
+
+    def get_event(self, user_id, event_id):
+        return next((e for e in self.events.get(user_id, []) if e.id == event_id), None)
+
+    def add_event(self, user_id, event, default_from, default_to):
+        if not self.events.get(user_id):
+            self.saved_schedules.append({"user_id": user_id, "valid_from": default_from, "valid_to": default_to})
+        stored = replace(event, id=self._new_id(), valid_from=default_from, valid_to=default_to, updated_at=datetime.now())
+        self.events.setdefault(user_id, []).append(stored)
+        return stored
+
+    def update_event(self, user_id, event_id, event):
+        old = self.get_event(user_id, event_id)
+        if old is None:
+            return None
+        new = replace(event, id=event_id, valid_from=old.valid_from, valid_to=old.valid_to, updated_at=datetime.now())
+        self.events[user_id] = [new if e.id == event_id else e for e in self.events[user_id]]
+        return new
+
+    def remove_event(self, user_id, event_id):
+        before = self.events.get(user_id, [])
+        self.events[user_id] = [e for e in before if e.id != event_id]
+        return len(self.events[user_id]) != len(before)
 
 
 class FakeWorkShiftRepository:

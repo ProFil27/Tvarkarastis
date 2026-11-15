@@ -12,6 +12,7 @@
         <a class="brand" href="{{ url_for('home.index') }}"><div class="logo">▦</div>Tvarkaraštis</a>
         <div class="tabs">
             <a class="tab {{ 'on' if request.blueprint in ('week', 'schedule') }}" href="{{ url_for('week.view') }}">Tvarkaraštis</a>
+            <a class="tab {{ 'on' if request.blueprint == 'lectures' }}" href="{{ url_for('lectures.list_events') }}">Paskaitos</a>
             <a class="tab {{ 'on' if request.blueprint == 'work_shifts' }}" href="{{ url_for('work_shifts.list_shifts') }}">Darbo valandos</a>
         </div>
         <div class="user">
