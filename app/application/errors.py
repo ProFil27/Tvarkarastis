@@ -51,6 +51,7 @@ class CalendarError(Exception):
     NOT_CONFIGURED = "NOT_CONFIGURED"  # Google settings are missing
     CONSENT_REQUIRED = "CONSENT_REQUIRED"  # the user did not agree to send data to Google
     NOT_CONNECTED = "NOT_CONNECTED"
+    NOT_EXPORTED = "NOT_EXPORTED"  # nothing was exported yet, so there is nothing to update
     ACCESS_DENIED = "ACCESS_DENIED"  # the user refused access on Google's page
     INVALID_STATE = "INVALID_STATE"  # the OAuth state did not match (CSRF protection)
     INVALID_CODE = "INVALID_CODE"  # Google rejected the authorization code

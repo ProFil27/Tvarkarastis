@@ -1,5 +1,6 @@
 """Lithuanian user-facing messages for the error codes produced by services."""
 
+from app.application.calendar_texts import calendar_error_text
 from app.domain.rules import MAX_PDF_SIZE_BYTES, MAX_ROOM_LENGTH, MAX_SUBJECT_LENGTH, MAX_WORKPLACE_LENGTH, MIN_PASSWORD_LENGTH
 
 _MESSAGES = {
@@ -35,26 +36,12 @@ LOGIN_FAILED = "Neteisingas el. paštas arba slaptažodis."
 RECOGNITION_FAILED = "Nepavyko atpažinti tvarkaraščio. Bandykite įkelti failą iš naujo."
 
 
-_CALENDAR_MESSAGES = {
-    "NOT_CONFIGURED": "Google Calendar nesukonfigūruotas. Kreipkitės į sistemos administratorių.",
-    "CONSENT_REQUIRED": "Prieš prijungdami kalendorių patvirtinkite sutikimą siųsti duomenis į Google.",
-    "NOT_CONNECTED": "Google Calendar neprijungtas. Pirmiausia prijunkite paskyrą.",
-    "ACCESS_DENIED": "Prieiga nepatvirtinta. Kalendorius neprijungtas.",
-    "INVALID_STATE": "Neteisingas užklausos kodas. Bandykite prijungti kalendorių dar kartą.",
-    "INVALID_CODE": "Neteisingas užklausos kodas. Bandykite prijungti kalendorių dar kartą.",
-    "UNAVAILABLE": "Kalendoriaus tiekėjas nepasiekiamas. Bandykite dar kartą.",
-    "AUTH_EXPIRED": "Prisijunkite prie Google Calendar iš naujo.",
-    "NOT_FOUND": "Kalendoriaus įvykis nerastas. Bandykite sinchronizuoti dar kartą.",
-    "REJECTED": "Kalendoriaus tiekėjas atmetė užklausą. Bandykite dar kartą.",
-}
-
-
 OPERATION_LABELS = {"EXPORT": "Eksportas", "UPDATE": "Atnaujinimas"}
 
 
 def calendar_error(code: str) -> str:
     """Lithuanian text (cause and next step) for a CalendarError code (F-25, F-31)."""
-    return _CALENDAR_MESSAGES.get(code, _CALENDAR_MESSAGES["UNAVAILABLE"])
+    return calendar_error_text(code)
 
 
 def translate(errors: dict[str, str]) -> dict[str, str]:

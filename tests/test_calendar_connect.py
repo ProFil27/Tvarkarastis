@@ -24,7 +24,7 @@ def make_service(provider=None, cipher=None):
     service = CalendarSyncService(
         provider, accounts, cipher or fakes.FakeTokenCipher(), fakes.FakeCalendarEventRepository(),
         fakes.FakeSyncOperationRepository(), fakes.FakeScheduleRepository(), fakes.FakeWorkShiftRepository(),
-        now=lambda: NOW, utc_now=lambda: NOW,
+        fakes.FakeNotificationRepository(), now=lambda: NOW, utc_now=lambda: NOW,
     )
     return service, provider, accounts
 

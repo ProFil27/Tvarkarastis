@@ -78,9 +78,10 @@ class World:
         self.schedules, self.shifts = fakes.FakeScheduleRepository(), fakes.FakeWorkShiftRepository()
         self.accounts, self.links = fakes.FakeCalendarAccountRepository(), fakes.FakeCalendarEventRepository()
         self.operations, self.cipher = fakes.FakeSyncOperationRepository(), fakes.FakeTokenCipher()
+        self.notifications = fakes.FakeNotificationRepository()
         self.service = CalendarSyncService(
             self.provider, self.accounts, self.cipher, self.links, self.operations, self.schedules, self.shifts,
-            now=datetime.now, utc_now=lambda: datetime(2026, 11, 15, 12, 0),
+            self.notifications, now=datetime.now, utc_now=lambda: datetime(2026, 11, 15, 12, 0),
         )
         if connected:
             self.accounts.save_connected(

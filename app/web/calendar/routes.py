@@ -73,6 +73,22 @@ def export():
     return redirect(url_for("calendar.view"))
 
 
+@calendar_bp.route("/sync", methods=["POST"])
+@login_required
+def sync():
+    """Update Google Calendar after changes, on demand (F-28)."""
+    try:
+        result = services().calendar.sync(current_user_id())
+    except CalendarError as exc:
+        flash(messages.calendar_error(exc.code), "error")
+    else:
+        flash(
+            f"Sinchronizuota: sukurta {result.created}, atnaujinta {result.updated}, ištrinta {result.deleted}.",
+            "success",
+        )
+    return redirect(url_for("calendar.view"))
+
+
 @calendar_bp.route("/reminders", methods=["POST"])
 @login_required
 def toggle_reminders():

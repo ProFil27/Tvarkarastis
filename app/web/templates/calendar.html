@@ -68,7 +68,10 @@
         {% endif %}
         <div style="margin-top:18px;display:flex;gap:12px">
             <form method="post" action="{{ url_for('calendar.export') }}">
-                <button type="submit" class="btn p">Eksportuoti į Google Calendar</button>
+                <button type="submit" class="btn {{ 's' if report.exported else 'p' }}">Eksportuoti į Google Calendar</button>
+            </form>
+            <form method="post" action="{{ url_for('calendar.sync') }}">
+                <button type="submit" class="btn {{ 'p' if report.exported else 's' }}">Sinchronizuoti dar kartą</button>
             </form>
         </div>
     </div>

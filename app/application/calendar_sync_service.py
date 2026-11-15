@@ -14,11 +14,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable
 
 from app.application.calendar_events import study_event_body, work_shift_body
+from app.application.calendar_texts import calendar_error_text
 from app.application.errors import CalendarError
 from app.application.ports import (
     CalendarAccountRepository,
     CalendarEventRepository,
     CalendarProvider,
+    NotificationRepository,
     ScheduleRepository,
     SyncOperationRepository,
     TokenCipher,
@@ -30,6 +32,7 @@ from app.domain.entities import (
     CalendarAccountStatus,
     CalendarEventLink,
     CalendarTokens,
+    NotificationType,
     SyncOperation,
     SyncOperationType,
     SyncStatus,
@@ -92,6 +95,7 @@ class CalendarSyncService:
         operations: SyncOperationRepository,
         schedules: ScheduleRepository,
         shifts: WorkShiftRepository,
+        notifications: NotificationRepository,
         now: Callable[[], datetime] = local_now,
         utc_now: Callable[[], datetime] = _utc_now,
     ):
@@ -102,6 +106,7 @@ class CalendarSyncService:
         self._operations = operations
         self._schedules = schedules
         self._shifts = shifts
+        self._notifications = notifications
         self._now = now  # local time, shown to the user and sent to the calendar (N-29)
         self._utc_now = utc_now  # token expiry is kept in UTC
 
@@ -167,6 +172,40 @@ class CalendarSyncService:
         event are updated instead (F-29).
         """
         return self._reconcile(user_id, SyncOperationType.EXPORT)
+
+    def sync(self, user_id: int) -> SyncResult:
+        """Bring Google Calendar in line with the user's records: create new, update changed, delete removed
+        (F-28). Needs a connected account and an earlier export. Raises CalendarError.
+        """
+        self._connected_account(user_id)
+        if not self._operations.has_export(user_id):
+            raise CalendarError(CalendarError.NOT_EXPORTED)
+        return self._reconcile(user_id, SyncOperationType.UPDATE)
+
+    def on_data_changed(self, user_id: int) -> None:
+        """ChangeNotifier listener: update the calendar after a lecture, shift or schedule changed (F-28).
+
+        Does nothing if the calendar is not connected or nothing was exported yet. It never raises (N-33,
+        N-34): a failure is recorded, the user gets a system notification, and the saved change stays.
+        """
+        account = self._accounts.get(user_id)
+        if account is None or account.status != CalendarAccountStatus.CONNECTED:
+            return
+        try:
+            if not self._operations.has_export(user_id):
+                return
+            self._reconcile(user_id, SyncOperationType.UPDATE)
+        except CalendarError:
+            pass  # recorded and notified by the run itself
+        except Exception:  # noqa: BLE001 - the saved change must survive any calendar problem
+            log.exception("Calendar update after a change failed")
+
+    def _notify_failure(self, user_id: int, code: str) -> None:
+        """One system notification per distinct problem until the user dismisses it (F-31)."""
+        message = "Kalendoriaus sinchronizavimas nepavyko. " + calendar_error_text(code)
+        if any(n.message == message for n in self._notifications.list_unread(user_id)):
+            return
+        self._notifications.add(user_id, None, message, NotificationType.SYNC_ERROR)
 
     def _reconcile(self, user_id: int, operation_type: SyncOperationType) -> SyncResult:
         account = self._connected_account(user_id)
@@ -235,6 +274,7 @@ class CalendarSyncService:
         if code == CalendarError.AUTH_EXPIRED:
             self._accounts.set_status(account.user_id, CalendarAccountStatus.RECONNECT_REQUIRED)
         self._operations.finish(operation_id, SyncStatus.ERROR, self._now(), created, updated, deleted, code, detail)
+        self._notify_failure(account.user_id, code)
 
     # ------------------------------------------------------------------ tokens (N-31, N-33, N-43)
 

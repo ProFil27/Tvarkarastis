@@ -89,7 +89,9 @@ def build_services(settings: Settings) -> Services:
         PostgresSyncOperationRepository(database),
         schedules,
         shifts,
+        notifications,
     )
+    change_notifier.subscribe(calendar.on_data_changed)  # after the conflict check (F-28)
 
     return Services(
         auth=auth,
