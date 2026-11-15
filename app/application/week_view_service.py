@@ -62,6 +62,14 @@ def monday_of(day: date) -> date:
     return day - timedelta(days=day.weekday())
 
 
+def _runs_in_week(event: StudyEvent, week_start: date) -> bool:
+    """A study event repeats weekly, but only inside the validity period of its schedule."""
+    day = week_start + timedelta(days=event.weekday.index)
+    if event.valid_from is not None and day < event.valid_from:
+        return False
+    return event.valid_to is None or day <= event.valid_to
+
+
 class WeekViewService:
     def __init__(
         self,
@@ -79,8 +87,10 @@ class WeekViewService:
         week_start = monday_of(week_start)
         week_end = week_start + timedelta(days=6)
 
-        events = self._schedules.list_study_events(user_id, week_start, week_end)
-        shifts = self._shifts.list_for_user(user_id)
+        events = [
+            e for e in self._schedules.list_study_events(user_id, week_start, week_end) if _runs_in_week(e, week_start)
+        ]
+        shifts = [s for s in self._shifts.list_for_user(user_id) if week_start <= s.work_date <= week_end]
         events_by_id = {e.id: e for e in events}
         shifts_by_id = {s.id: s for s in shifts}
         conflicts = [
@@ -93,12 +103,13 @@ class WeekViewService:
 
         days = []
         for weekday in Weekday:
+            day = week_start + timedelta(days=weekday.index)
             days.append(
                 DayView(
                     weekday=weekday,
-                    date=week_start + timedelta(days=weekday.index),
+                    date=day,
                     events=[WeekEvent(e, e.id in conflicted_events) for e in events if e.weekday == weekday],
-                    shifts=[WeekShift(s, s.id in conflicted_shifts) for s in shifts if s.weekday == weekday],
+                    shifts=[WeekShift(s, s.id in conflicted_shifts) for s in shifts if s.work_date == day],
                     conflicts=[
                         ConflictDetail(events_by_id[c.study_event_id], shifts_by_id[c.work_shift_id], c.overlap_minutes)
                         for c in conflicts

@@ -18,14 +18,10 @@
                 {% if errors.get('workplace_name') %}<div class="field-error">{{ errors['workplace_name'] }}</div>{% endif %}
             </div>
             <div>
-                <label for="day_of_week">Diena</label>
-                <select class="in {{ 'invalid' if errors.get('weekday') }}" id="day_of_week" name="day_of_week">
-                    <option value="">Pasirinkite</option>
-                    {% for day in weekday_labels %}
-                        <option value="{{ day }}" {% if form.get('day_of_week') == day %}selected{% endif %}>{{ day }}</option>
-                    {% endfor %}
-                </select>
-                {% if errors.get('weekday') %}<div class="field-error">{{ errors['weekday'] }}</div>{% endif %}
+                <label for="work_date">Data</label>
+                <input class="in {{ 'invalid' if errors.get('work_date') }}" type="date" id="work_date"
+                       name="work_date" value="{{ form.get('work_date', '') }}">
+                {% if errors.get('work_date') %}<div class="field-error">{{ errors['work_date'] }}</div>{% endif %}
             </div>
             <div>
                 <label for="start_time">Pradžia</label>
@@ -51,11 +47,11 @@
         {% if shifts %}
             <div class="tw">
                 <table>
-                    <tr><th>Darbovietė</th><th>Diena</th><th>Pradžia</th><th>Pabaiga</th><th></th></tr>
+                    <tr><th>Darbovietė</th><th>Data</th><th>Pradžia</th><th>Pabaiga</th><th></th></tr>
                     {% for shift in shifts %}
                         <tr>
                             <td><b>{{ shift.workplace_name }}</b></td>
-                            <td>{{ shift.weekday.label }}</td>
+                            <td>{{ shift.work_date.isoformat() }} <span class="hint">{{ shift.weekday.label }}</span></td>
                             <td>{{ shift.start_time.strftime('%H:%M') }}</td>
                             <td>{{ shift.end_time.strftime('%H:%M') }}</td>
                             <td style="text-align:right">

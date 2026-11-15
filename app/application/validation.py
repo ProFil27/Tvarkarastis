@@ -1,15 +1,24 @@
 """Small validation helpers shared by services."""
 
-from datetime import datetime, time
+from datetime import date, datetime, time
 from typing import Callable
 
 TIME_FORMAT = "%H:%M"
+DATE_FORMAT = "%Y-%m-%d"
 
 
 def parse_time(value: str | None) -> time | None:
     """Parse "HH:MM" (24h); None if the value is missing or malformed."""
     try:
         return datetime.strptime(value or "", TIME_FORMAT).time()
+    except ValueError:
+        return None
+
+
+def parse_date(value: str | None) -> date | None:
+    """Parse "YYYY-MM-DD"; None if the value is missing or malformed."""
+    try:
+        return datetime.strptime(value or "", DATE_FORMAT).date()
     except ValueError:
         return None
 

@@ -3,7 +3,7 @@ from datetime import date, time
 from app.application.conflict_service import ConflictService
 from app.application.week_view_service import WeekViewService
 from app.container import Services
-from app.domain.entities import DetectedConflict, WorkShift
+from app.domain.entities import DetectedConflict, StudyEvent, StudyEventType, WorkShift
 from app.domain.overlap import overlap_minutes
 from app.domain.weekday import Weekday
 from app.web import create_app
@@ -20,10 +20,35 @@ def make_conflicts(analyzer):
 
 
 def test_overlap_rule_ignores_touching_intervals():
-    shift = WorkShift(1, "Kavine", Weekday.MONDAY, time(10, 30), time(14, 0))
+    shift = WorkShift(1, "Kavine", fakes.MONDAY, time(10, 30), time(14, 0))
     assert overlap_minutes(sample_event(1, end=time(10, 30)), shift) == 0
     assert overlap_minutes(sample_event(1, end=time(11, 0)), shift) == 30
     assert overlap_minutes(sample_event(1, weekday=Weekday.TUESDAY, end=time(11, 0)), shift) == 0
+
+
+def test_shift_only_conflicts_on_its_own_date_inside_schedule_validity():
+    event = StudyEvent(1, "Programavimas", StudyEventType.LECTURE, Weekday.MONDAY, time(9, 0), time(11, 0), None,
+                       True, date(2026, 9, 1), date(2026, 12, 20))
+
+    def shift(day):
+        return WorkShift(1, "Kavine", day, time(10, 0), time(12, 0))
+
+    assert overlap_minutes(event, shift(date(2026, 11, 16))) == 60  # a Monday inside the semester
+    assert overlap_minutes(event, shift(date(2026, 11, 17))) == 0  # Tuesday
+    assert overlap_minutes(event, shift(date(2026, 8, 31))) == 0  # Monday before the schedule starts
+    assert overlap_minutes(event, shift(date(2026, 12, 21))) == 0  # Monday after it ends
+
+
+def test_week_view_shows_a_shift_only_in_the_week_of_its_date():
+    service, schedules, shifts, conflicts, notifications, _ = make_conflicts(fakes.FakeAnalyzer())
+    schedules.add(1, None, date.today(), date.today(), [sample_event()])
+    shifts.add(1, "Kavine", fakes.MONDAY, time(10, 0), time(14, 0))
+    week_view = WeekViewService(schedules, shifts, conflicts, notifications)
+
+    assert week_view.get_week(1, date(2026, 10, 26)).days[0].shifts[0].shift.workplace_name == "Kavine"
+    next_week = week_view.get_week(1, date(2026, 11, 2))
+    assert all(not day.shifts for day in next_week.days)
+    assert next_week.days[0].events  # the lecture repeats weekly
 
 
 def test_conflict_check_verifies_ai_result_and_notifies_once():
@@ -31,7 +56,7 @@ def test_conflict_check_verifies_ai_result_and_notifies_once():
     analyzer = fakes.FakeAnalyzer([DetectedConflict(1, 1, 999), DetectedConflict(2, 1, 60)])
     service, schedules, shifts, conflicts, notifications, _ = make_conflicts(analyzer)
     schedules.add(1, None, date.today(), date.today(), [sample_event(), sample_event(weekday=Weekday.TUESDAY)])
-    shifts.add(1, "Kavine", Weekday.MONDAY, time(10, 0), time(14, 0))
+    shifts.add(1, "Kavine", fakes.MONDAY, time(10, 0), time(14, 0))
 
     service.run_check(1)
     assert [(c.study_event_id, c.overlap_minutes) for c in conflicts.list_active(1)] == [(1, 30)]
@@ -44,7 +69,7 @@ def test_conflict_check_verifies_ai_result_and_notifies_once():
 def test_conflict_check_never_raises_and_keeps_data_on_failure():
     service, schedules, shifts, conflicts, _, ai_log = make_conflicts(fakes.FakeAnalyzer(fail=True))
     schedules.add(1, None, date.today(), date.today(), [sample_event()])
-    shifts.add(1, "Kavine", Weekday.MONDAY, time(10, 0), time(14, 0))
+    shifts.add(1, "Kavine", fakes.MONDAY, time(10, 0), time(14, 0))
     service.run_check(1)
     assert conflicts.list_active(1) == [] and ai_log.requests[0]["error"]  # failure is logged, data unchanged
 
@@ -54,7 +79,7 @@ def test_week_view_marks_conflicts_and_normalizes_to_monday():
         fakes.FakeAnalyzer([DetectedConflict(1, 1, 30)])
     )
     schedules.add(1, None, date.today(), date.today(), [sample_event()])
-    shifts.add(1, "Kavine", Weekday.MONDAY, time(10, 0), time(14, 0))
+    shifts.add(1, "Kavine", fakes.MONDAY, time(10, 0), time(14, 0))
     service.run_check(1)
 
     week = WeekViewService(schedules, shifts, conflicts, notifications).get_week(1, date(2026, 10, 28))
@@ -70,7 +95,7 @@ def test_week_page_shows_conflict_notification_and_dismiss_works():
         fakes.FakeAnalyzer([DetectedConflict(1, 1, 30)])
     )
     schedules.add(1, None, date.today(), date.today(), [sample_event()])
-    shifts.add(1, "Kavine", Weekday.MONDAY, time(10, 0), time(14, 0))
+    shifts.add(1, "Kavine", fakes.MONDAY, time(10, 0), time(14, 0))
     service.run_check(1)
 
     week_view = WeekViewService(schedules, shifts, conflicts, notifications)
@@ -91,7 +116,7 @@ def test_recheck_button_runs_the_conflict_check_again():
         fakes.FakeAnalyzer([DetectedConflict(1, 1, 30)])
     )
     schedules.add(1, None, date.today(), date.today(), [sample_event()])
-    shifts.add(1, "Kavine", Weekday.MONDAY, time(10, 0), time(14, 0))
+    shifts.add(1, "Kavine", fakes.MONDAY, time(10, 0), time(14, 0))
     week_view = WeekViewService(schedules, shifts, conflicts, notifications)
     client = create_app(services=Services(conflicts=service, week_view=week_view)).test_client()
     with client.session_transaction() as session:

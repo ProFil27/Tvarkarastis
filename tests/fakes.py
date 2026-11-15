@@ -73,8 +73,8 @@ class FakeWorkShiftRepository:
         self.shifts: dict[int, list[WorkShift]] = {}
         self._next_id = 1
 
-    def add(self, user_id, workplace_name, weekday, start_time, end_time):
-        shift = WorkShift(self._next_id, workplace_name, weekday, start_time, end_time)
+    def add(self, user_id, workplace_name, work_date, start_time, end_time):
+        shift = WorkShift(self._next_id, workplace_name, work_date, start_time, end_time)
         self._next_id += 1
         self.shifts.setdefault(user_id, []).append(shift)
         return shift
@@ -141,6 +141,10 @@ class FakeAiRequestLog:
 
     def finish(self, ai_request_id, attempts, error):
         self.requests[ai_request_id].update(attempts=attempts, error=error)
+
+
+MONDAY = date(2026, 10, 26)  # a Monday; sample shifts fall on it
+TUESDAY = date(2026, 10, 27)
 
 
 def sample_event(event_id=None, weekday=Weekday.MONDAY, start=time(9, 0), end=time(10, 30), subject="Programavimas"):

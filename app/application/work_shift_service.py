@@ -1,8 +1,7 @@
 from app.application.errors import ValidationFailed
 from app.application.ports import WorkShiftRepository
-from app.application.validation import ChangeListener, ignore_changes, parse_time, validate_time_range
+from app.application.validation import ChangeListener, ignore_changes, parse_date, parse_time, validate_time_range
 from app.domain.entities import WorkShift
-from app.domain.weekday import Weekday
 
 
 class WorkShiftService:
@@ -10,18 +9,18 @@ class WorkShiftService:
         self._shifts = shifts
         self._on_change = on_change
 
-    def add_shift(
-        self, user_id: int, workplace_name: str, weekday: Weekday | None, start: str, end: str
-    ) -> WorkShift:
+    def add_shift(self, user_id: int, workplace_name: str, work_date: str, start: str, end: str) -> WorkShift:
         errors = validate_time_range(start, end)
         if not workplace_name or not workplace_name.strip():
             errors["workplace_name"] = "required"
-        if weekday is None:
-            errors["weekday"] = "invalid_choice"
+        if parse_date(work_date) is None:
+            errors["work_date"] = "invalid_date"
         if errors:
             raise ValidationFailed(errors)
 
-        shift = self._shifts.add(user_id, workplace_name.strip(), weekday, parse_time(start), parse_time(end))
+        shift = self._shifts.add(
+            user_id, workplace_name.strip(), parse_date(work_date), parse_time(start), parse_time(end)
+        )
         self._on_change(user_id)
         return shift
 

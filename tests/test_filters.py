@@ -1,4 +1,4 @@
-from datetime import time
+from datetime import date, time
 
 import pytest
 
@@ -28,7 +28,7 @@ def test_lithuanian_plural(count, expected):
 
 def test_overlap_bar_scale_matches_the_mockup_example():
     event = StudyEvent(1, "Duomenų bazės", StudyEventType.LECTURE, Weekday.MONDAY, time(8, 30), time(10, 0), None)
-    shift = WorkShift(1, "UAB Pavyzdys", Weekday.MONDAY, time(9, 0), time(13, 0))
+    shift = WorkShift(1, "UAB Pavyzdys", date(2026, 10, 26), time(9, 0), time(13, 0))
     bar = timeline(ConflictDetail(event, shift, 60))
     assert bar["event_left"] == 0 and bar["overlap_width"] == round(60 * 100 / 270, 1)
     assert bar["shift_left"] == round(30 * 100 / 270, 1) and bar["shift_width"] == round(240 * 100 / 270, 1)

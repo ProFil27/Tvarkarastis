@@ -20,7 +20,6 @@ from app.domain.entities import (
     User,
     WorkShift,
 )
-from app.domain.weekday import Weekday
 
 
 @dataclass(frozen=True)
@@ -67,7 +66,7 @@ class ScheduleRepository(Protocol):
 
 class WorkShiftRepository(Protocol):
     def add(
-        self, user_id: int, workplace_name: str, weekday: Weekday, start_time: time, end_time: time
+        self, user_id: int, workplace_name: str, work_date: date, start_time: time, end_time: time
     ) -> WorkShift: ...
 
     def list_for_user(self, user_id: int) -> list[WorkShift]: ...

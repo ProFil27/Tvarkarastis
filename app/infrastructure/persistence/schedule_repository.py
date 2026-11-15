@@ -55,7 +55,8 @@ class PostgresScheduleRepository:
     ) -> list[StudyEvent]:
         query = """
             SELECT se.id, se.event_type, se.day_of_week, se.start_time, se.end_time,
-                   se.room, se.is_mandatory, sub.name AS subject_name
+                   se.room, se.is_mandatory, sub.name AS subject_name,
+                   sc.valid_from, sc.valid_to
             FROM study_events se
             JOIN subjects sub ON sub.id = se.subject_id
             JOIN schedules sc ON sc.id = se.schedule_id
@@ -80,6 +81,8 @@ class PostgresScheduleRepository:
                 end_time=r["end_time"],
                 room=r["room"],
                 is_mandatory=r["is_mandatory"],
+                valid_from=r["valid_from"],
+                valid_to=r["valid_to"],
             )
             for r in rows
         ]

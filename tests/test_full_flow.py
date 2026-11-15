@@ -62,7 +62,7 @@ def test_full_flow_upload_review_confirm_and_conflict_in_week_view(client):
     register(client)
     client.post(
         "/work-shifts/add",
-        data={"workplace_name": "Kavine", "day_of_week": "Pirmadienis", "start_time": "10:00", "end_time": "14:00"},
+        data={"workplace_name": "Kavine", "work_date": "2026-10-26", "start_time": "10:00", "end_time": "14:00"},
     )
 
     upload = client.post(
@@ -101,7 +101,7 @@ def test_user_cannot_remove_another_users_shift(client):
     register(client)
     client.post(
         "/work-shifts/add",
-        data={"workplace_name": "Kavine", "day_of_week": "Pirmadienis", "start_time": "10:00", "end_time": "14:00"},
+        data={"workplace_name": "Kavine", "work_date": "2026-10-26", "start_time": "10:00", "end_time": "14:00"},
     )
     client.post("/logout")
     client.post("/register", data={"name": "Kitas", "email": "k@x.lt", "password": "Slaptazodis123"})

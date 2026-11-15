@@ -1,4 +1,4 @@
--- Tvarkarastis - PostgreSQL schema (sprint 1)
+-- Tvarkarastis - PostgreSQL schema (sprint 1 + sprint 2; existing databases: db/migrations/)
 -- Class diagram: User, Schedule, Subject, StudyEvent, Workplace, WorkShift,
 -- PdfDocument, AiRequest, Conflict, Notification.
 -- TimeInterval is a structural class (the week view) and is not stored in a table.
@@ -74,11 +74,11 @@ CREATE TABLE workplaces (
     name VARCHAR(255) NOT NULL
 );
 
--- WorkShift: working-time interval on a given weekday (DVK)
+-- WorkShift: working-time interval on a concrete date (DVK)
 CREATE TABLE work_shifts (
     id SERIAL PRIMARY KEY,
     workplace_id INTEGER NOT NULL REFERENCES workplaces(id) ON DELETE CASCADE,
-    day_of_week weekday NOT NULL,
+    work_date DATE NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     is_changeable BOOLEAN NOT NULL DEFAULT FALSE,
@@ -121,5 +121,6 @@ CREATE TABLE notifications (
 CREATE INDEX idx_schedules_user_id ON schedules(user_id);
 CREATE INDEX idx_study_events_schedule_id ON study_events(schedule_id);
 CREATE INDEX idx_work_shifts_workplace_id ON work_shifts(workplace_id);
+CREATE INDEX idx_work_shifts_work_date ON work_shifts(work_date);
 CREATE INDEX idx_conflicts_user_id ON conflicts(user_id);
 CREATE INDEX idx_notifications_user_id ON notifications(user_id);

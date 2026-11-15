@@ -4,7 +4,7 @@ Enum values are the codes stored in the database (defined by the specification).
 """
 
 from dataclasses import dataclass
-from datetime import time
+from datetime import date, time
 from enum import Enum
 
 from app.domain.weekday import Weekday
@@ -58,15 +58,23 @@ class StudyEvent:
     end_time: time
     room: str | None
     is_mandatory: bool = True
+    valid_from: date | None = None  # validity of the schedule the event belongs to (None = unknown / unlimited)
+    valid_to: date | None = None
 
 
 @dataclass(frozen=True)
 class WorkShift:
+    """A working-time interval on a concrete date (F-09, F-18)."""
+
     id: int
     workplace_name: str
-    weekday: Weekday
+    work_date: date
     start_time: time
     end_time: time
+
+    @property
+    def weekday(self) -> Weekday:
+        return Weekday.of_date(self.work_date)
 
 
 @dataclass(frozen=True)

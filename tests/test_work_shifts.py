@@ -7,7 +7,7 @@ from app.domain.weekday import Weekday
 from app.web import create_app
 from tests import fakes
 
-SHIFT_FORM = {"workplace_name": "Kavine", "day_of_week": "Pirmadienis", "start_time": "10:00", "end_time": "14:00"}
+SHIFT_FORM = {"workplace_name": "Kavine", "work_date": "2026-10-26", "start_time": "10:00", "end_time": "14:00"}
 
 
 def test_validation_codes_and_change_listener():
@@ -15,15 +15,16 @@ def test_validation_codes_and_change_listener():
     service = WorkShiftService(fakes.FakeWorkShiftRepository(), on_change=changed.append)
 
     with pytest.raises(ValidationFailed) as exc:
-        service.add_shift(1, "", None, "18:00", "10:00")
+        service.add_shift(1, "", "2026-13-40", "18:00", "10:00")
     assert exc.value.errors == {
         "workplace_name": "required",
-        "weekday": "invalid_choice",
+        "work_date": "invalid_date",
         "end_time": "end_not_after_start",
     }
 
-    shift = service.add_shift(1, "Kavine", Weekday.MONDAY, "15:00", "19:00")
+    shift = service.add_shift(1, "Kavine", "2026-10-26", "15:00", "19:00")
     assert service.list_shifts(1) == [shift]
+    assert shift.work_date.isoformat() == "2026-10-26" and shift.weekday == Weekday.MONDAY
     assert changed == [1]
 
     assert service.remove_shift(2, shift.id) is False  # another user's shift (N-21)

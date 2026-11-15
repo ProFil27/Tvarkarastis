@@ -10,6 +10,7 @@ _MESSAGES = {
     ("password", "required"): "Slaptažodis yra privalomas.",
     ("password", "too_short"): f"Slaptažodis turi būti ne trumpesnis nei {MIN_PASSWORD_LENGTH} simboliai.",
     ("workplace_name", "required"): "Darbovietė yra privaloma.",
+    ("work_date", "invalid_date"): "Data turi būti formatu MMMM-mm-dd.",
     ("weekday", "invalid_choice"): "Pasirinkite savaitės dieną.",
     ("day_of_week", "invalid_choice"): "Pasirinkite savaitės dieną.",
     ("subject", "required"): "Dalykas yra privalomas.",

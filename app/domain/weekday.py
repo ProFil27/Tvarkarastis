@@ -4,6 +4,7 @@ Enum values are the ASCII codes stored in the database (see db/schema.sql); the
 label is the Lithuanian display name shown to users (N-07).
 """
 
+from datetime import date
 from enum import Enum
 
 
@@ -24,6 +25,10 @@ class Weekday(Enum):
     def index(self) -> int:
         """0 for Monday ... 6 for Sunday."""
         return list(Weekday).index(self)
+
+    @classmethod
+    def of_date(cls, day: date) -> "Weekday":
+        return list(cls)[day.weekday()]
 
     @classmethod
     def from_label(cls, label: str) -> "Weekday | None":

@@ -1,7 +1,6 @@
-from datetime import time
+from datetime import date, time
 
 from app.domain.entities import WorkShift
-from app.domain.weekday import Weekday
 from app.infrastructure.database import Database
 
 
@@ -9,7 +8,7 @@ class PostgresWorkShiftRepository:
     def __init__(self, database: Database):
         self._db = database
 
-    def add(self, user_id: int, workplace_name: str, weekday: Weekday, start_time: time, end_time: time) -> WorkShift:
+    def add(self, user_id: int, workplace_name: str, work_date: date, start_time: time, end_time: time) -> WorkShift:
         with self._db.cursor(commit=True) as cur:
             cur.execute("SELECT id FROM workplaces WHERE user_id = %s AND name = %s", (user_id, workplace_name))
             row = cur.fetchone()
@@ -23,29 +22,29 @@ class PostgresWorkShiftRepository:
 
             cur.execute(
                 """
-                INSERT INTO work_shifts (workplace_id, day_of_week, start_time, end_time)
+                INSERT INTO work_shifts (workplace_id, work_date, start_time, end_time)
                 VALUES (%s, %s, %s, %s) RETURNING id
                 """,
-                (workplace_id, weekday.value, start_time, end_time),
+                (workplace_id, work_date, start_time, end_time),
             )
             shift_id = cur.fetchone()["id"]
-        return WorkShift(shift_id, workplace_name, weekday, start_time, end_time)
+        return WorkShift(shift_id, workplace_name, work_date, start_time, end_time)
 
     def list_for_user(self, user_id: int) -> list[WorkShift]:
         with self._db.cursor() as cur:
             cur.execute(
                 """
-                SELECT ws.id, ws.day_of_week, ws.start_time, ws.end_time, w.name AS workplace_name
+                SELECT ws.id, ws.work_date, ws.start_time, ws.end_time, w.name AS workplace_name
                 FROM work_shifts ws
                 JOIN workplaces w ON w.id = ws.workplace_id
                 WHERE w.user_id = %s
-                ORDER BY ws.start_time
+                ORDER BY ws.work_date, ws.start_time
                 """,
                 (user_id,),
             )
             rows = cur.fetchall()
         return [
-            WorkShift(r["id"], r["workplace_name"], Weekday(r["day_of_week"]), r["start_time"], r["end_time"])
+            WorkShift(r["id"], r["workplace_name"], r["work_date"], r["start_time"], r["end_time"])
             for r in rows
         ]
 

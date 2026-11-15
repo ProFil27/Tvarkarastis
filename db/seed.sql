@@ -58,13 +58,13 @@ INSERT INTO workplaces (id, user_id, name) VALUES
     (2, 2, 'UAB Pavyzdys'),
     (3, 3, 'Sandėlis Vilnius');
 
-INSERT INTO work_shifts (id, workplace_id, day_of_week, start_time, end_time, is_changeable) VALUES
-    (1, 1, 'PIRMADIENIS', '15:00', '19:00', FALSE),
-    (2, 1, 'TRECIADIENIS', '15:00', '17:00', FALSE),
-    (3, 1, 'PENKTADIENIS', '10:00', '14:00', FALSE),
-    (4, 2, 'PIRMADIENIS', '09:00', '13:00', FALSE),
-    (5, 2, 'TRECIADIENIS', '14:00', '18:00', FALSE),
-    (6, 3, 'ANTRADIENIS', '08:00', '12:00', FALSE);
+INSERT INTO work_shifts (id, workplace_id, work_date, start_time, end_time, is_changeable) VALUES
+    (1, 1, '2026-11-16', '15:00', '19:00', FALSE),
+    (2, 1, '2026-11-18', '15:00', '17:00', FALSE),
+    (3, 1, '2026-11-20', '10:00', '14:00', FALSE),
+    (4, 2, '2026-11-16', '09:00', '13:00', FALSE),
+    (5, 2, '2026-11-18', '14:00', '18:00', FALSE),
+    (6, 3, '2026-11-17', '08:00', '12:00', FALSE);
 
 INSERT INTO ai_requests (id, user_id, pdf_document_id, request_type, started_at, finished_at, attempt_count, error_message) VALUES
     (1, 1, 1, 'ATPAZINIMAS', now(), now(), 1, NULL),

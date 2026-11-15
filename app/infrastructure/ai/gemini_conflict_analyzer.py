@@ -9,7 +9,8 @@ from app.domain.entities import DetectedConflict, StudyEvent, WorkShift
 from app.infrastructure.ai.gemini_client import JsonClient, RetriesExhausted, call_with_retries
 
 _PROMPT = """You receive lists of study events and work shifts (JSON). Find every pair
-(study event, work shift) on the same weekday whose time intervals overlap.
+(study event, work shift) whose time intervals overlap. A study event repeats every week on its
+"day_of_week" between "valid_from" and "valid_to"; a work shift happens only on its "date".
 If one interval ends exactly when the other starts, it is NOT a conflict.
 Return ONLY a JSON array (no extra text) whose elements are:
   {"study_event_id": <int>, "work_shift_id": <int>, "overlap_minutes": <int>}
@@ -50,8 +51,18 @@ def _serialize(events: list[StudyEvent], shifts: list[WorkShift]) -> str:
             "end": format_time(item.end_time),
         }
 
+    def study_event(event: StudyEvent) -> dict:
+        return {
+            **interval(event),
+            "valid_from": event.valid_from.isoformat() if event.valid_from else None,
+            "valid_to": event.valid_to.isoformat() if event.valid_to else None,
+        }
+
+    def work_shift(shift: WorkShift) -> dict:
+        return {**interval(shift), "date": shift.work_date.isoformat()}
+
     return json.dumps(
-        {"study_events": [interval(e) for e in events], "work_shifts": [interval(s) for s in shifts]},
+        {"study_events": [study_event(e) for e in events], "work_shifts": [work_shift(s) for s in shifts]},
         ensure_ascii=False,
     )
 
